@@ -29,17 +29,17 @@ class ClaudeCodeHook
         $input = is_array($payload['tool_input'] ?? null) ? $payload['tool_input'] : [];
 
         match ($event) {
-            'SessionStart' => $this->office->report($agent, Status::Idle, 'Zit klaar voor een opdracht'),
-            'UserPromptSubmit' => $this->office->report($agent, Status::Working, 'Nieuwe opdracht'),
+            'SessionStart' => $this->office->report($agent, Status::Idle, 'Ready for a task'),
+            'UserPromptSubmit' => $this->office->report($agent, Status::Working, 'New task'),
             'PreToolUse' => $this->isDelegation($tool)
                 ? $this->brief($agent, $session, $input)
                 : $this->office->activity($this->subagent($agent, $session, $payload) ?? $agent, $this->describe($tool, $input)),
             'SubagentStart' => $this->delegate($agent, $session, $payload),
             'SubagentStop' => $this->delegated($agent, $session, $payload),
             'Notification' => $this->office->report($agent, Status::Waiting, $this->notification((string) ($payload['message'] ?? ''))),
-            'Stop' => $this->stop($agent, $session, Status::Done, 'Klaar met de opdracht'),
+            'Stop' => $this->stop($agent, $session, Status::Done, 'Finished the task'),
             'SessionEnd' => $this->stop($agent, $session, Status::Offline, null),
-            'PreCompact' => $this->office->activity($agent, 'Ruimt het geheugen op'),
+            'PreCompact' => $this->office->activity($agent, 'Tidying up its memory'),
             default => $agent->forceFill(['last_seen_at' => now()])->save(),
         };
 
@@ -68,21 +68,21 @@ class ClaudeCodeHook
         $file = isset($input['file_path']) ? basename((string) $input['file_path']) : null;
 
         if (str_starts_with($tool, 'mcp__')) {
-            $server = explode('__', $tool)[1] ?? 'een connector';
+            $server = explode('__', $tool)[1] ?? 'a connector';
 
-            return 'Gebruikt '.str_replace(['_', '-'], ' ', $server);
+            return 'Using '.str_replace(['_', '-'], ' ', $server);
         }
 
         return match ($tool) {
-            'Read' => $file ? "Leest {$file}" : 'Leest een bestand',
-            'Edit', 'MultiEdit', 'NotebookEdit' => $file ? "Bewerkt {$file}" : 'Bewerkt een bestand',
-            'Write' => $file ? "Schrijft {$file}" : 'Schrijft een bestand',
-            'Bash' => isset($input['description']) ? Str::limit((string) $input['description'], 80) : 'Draait een commando',
-            'Grep', 'Glob' => 'Zoekt in de code',
-            'WebFetch' => 'Leest '.(parse_url((string) ($input['url'] ?? ''), PHP_URL_HOST) ?: 'een webpagina'),
-            'WebSearch' => 'Zoekt online',
-            'TodoWrite', 'TaskCreate', 'TaskUpdate' => 'Werkt de takenlijst bij',
-            default => $tool !== '' ? "Gebruikt {$tool}" : 'Aan het werk',
+            'Read' => $file ? "Reading {$file}" : 'Reading a file',
+            'Edit', 'MultiEdit', 'NotebookEdit' => $file ? "Editing {$file}" : 'Editing a file',
+            'Write' => $file ? "Writing {$file}" : 'Writing a file',
+            'Bash' => isset($input['description']) ? Str::limit((string) $input['description'], 80) : 'Running a command',
+            'Grep', 'Glob' => 'Searching the code',
+            'WebFetch' => 'Reading '.(parse_url((string) ($input['url'] ?? ''), PHP_URL_HOST) ?: 'a web page'),
+            'WebSearch' => 'Searching the web',
+            'TodoWrite', 'TaskCreate', 'TaskUpdate' => 'Updating the task list',
+            default => $tool !== '' ? "Using {$tool}" : 'Working',
         };
     }
 
@@ -117,7 +117,7 @@ class ClaudeCodeHook
 
         Cache::put($key, array_slice($briefings, -20), now()->addHour());
 
-        $this->office->activity($parent, 'Zet een subagent aan het werk');
+        $this->office->activity($parent, 'Starting a subagent');
     }
 
     protected function delegate(Agent $parent, string $session, array $payload): void
@@ -130,12 +130,12 @@ class ClaudeCodeHook
 
         $key = $this->briefingKey($session, (string) ($payload['agent_type'] ?? ''));
         $briefings = Cache::get($key, []);
-        $what = array_shift($briefings) ?: 'een taak';
+        $what = array_shift($briefings) ?: 'a task';
         Cache::put($key, $briefings, now()->addHour());
 
         $this->office->handoff($parent, $sub, $what);
         $this->office->report($sub, Status::Working, $what);
-        $this->office->activity($parent, 'Wacht op '.$sub->name);
+        $this->office->activity($parent, 'Waiting for '.$sub->name);
     }
 
     protected function delegated(Agent $parent, string $session, array $payload): void
@@ -146,11 +146,11 @@ class ClaudeCodeHook
             return;
         }
 
-        $this->office->report($sub, Status::Done, 'Resultaat teruggegeven');
-        $this->office->handoff($sub, $parent, 'resultaat');
+        $this->office->report($sub, Status::Done, 'Returned the result');
+        $this->office->handoff($sub, $parent, 'result');
 
         if ($parent->status === Status::Working) {
-            $this->office->activity($parent, 'Verwerkt het werk van '.$sub->name);
+            $this->office->activity($parent, 'Processing the work from '.$sub->name);
         }
     }
 
@@ -178,9 +178,9 @@ class ClaudeCodeHook
         $lower = Str::lower($message);
 
         return match (true) {
-            str_contains($lower, 'permission') => 'Wacht op toestemming',
-            str_contains($lower, 'waiting for your input'), str_contains($lower, 'idle') => 'Wacht op je antwoord',
-            $message === '' => 'Heeft je nodig',
+            str_contains($lower, 'permission') => 'Waiting for permission',
+            str_contains($lower, 'waiting for your input'), str_contains($lower, 'idle') => 'Waiting for your reply',
+            $message === '' => 'Needs you',
             default => Str::limit($message, 100),
         };
     }

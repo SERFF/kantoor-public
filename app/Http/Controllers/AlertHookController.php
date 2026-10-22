@@ -10,13 +10,17 @@ use Illuminate\Validation\Rule;
 
 class AlertHookController
 {
-    public function __invoke(Request $request, string $token, Switchboard $switchboard): JsonResponse
+    public function __invoke(Request $request, Switchboard $switchboard, ?string $token = null): JsonResponse
     {
-        $hook = HookToken::findByPlain($token, HookToken::ALERT);
+        if ($token !== null) {
+            $hook = HookToken::findByPlain($token, HookToken::ALERT);
 
-        abort_unless($hook, 404);
+            abort_unless($hook, 404);
 
-        $hook->touchUsed();
+            $hook->touchUsed();
+        } else {
+            abort_unless(in_array($request->ip(), config('kantoor.alert_ips'), true), 404);
+        }
 
         $request->validate([
             'action' => ['required', Rule::in(Switchboard::ACTIONS)],

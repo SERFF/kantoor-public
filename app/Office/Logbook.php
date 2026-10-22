@@ -60,7 +60,7 @@ class Logbook
                 ->groupBy(fn (LogEntry $entry) => $entry->project_id ?? 0)
                 ->map(fn (Collection $group) => [
                     'project_id' => $group->first()->project_id,
-                    'name' => $group->first()->project?->name ?? 'Zonder project',
+                    'name' => $group->first()->project?->name ?? 'No project',
                     'count' => $group->count(),
                     'items' => $group->take(5)->map(fn (LogEntry $entry) => [
                         'agent' => $entry->agent_name,
@@ -102,21 +102,21 @@ class Logbook
     {
         $day = $this->day($date);
         $entries = $this->entries($day, $day->addDay(), $project);
-        $label = $day->locale('nl')->isoFormat('dddd D MMMM');
+        $label = $day->locale('en')->isoFormat('dddd, MMMM D');
 
         $lines = [];
 
         if ($entries->isEmpty()) {
-            $lines[] = "Op {$label} is er niets opgeleverd".($project ? " voor {$project->name}" : '').'.';
+            $lines[] = 'Nothing was delivered'.($project ? " for {$project->name}" : '')." on {$label}.";
         } else {
-            $lines[] = "Opgeleverd op {$label}: {$entries->count()}.";
+            $lines[] = "Delivered on {$label}: {$entries->count()}.";
 
-            foreach ($entries->groupBy(fn (LogEntry $entry) => $entry->project?->name ?? 'Zonder project') as $name => $group) {
+            foreach ($entries->groupBy(fn (LogEntry $entry) => $entry->project?->name ?? 'No project') as $name => $group) {
                 $lines[] = '';
                 $lines[] = "{$name} ({$group->count()})";
 
                 foreach ($group->sortBy('created_at') as $entry) {
-                    $lines[] = sprintf('- %s %s: %s', $entry->created_at->setTimezone($this->timezone())->format('H:i'), $entry->agent_name, $entry->message ?: 'klaar');
+                    $lines[] = sprintf('- %s %s: %s', $entry->created_at->setTimezone($this->timezone())->format('H:i'), $entry->agent_name, $entry->message ?: 'done');
                 }
             }
         }
@@ -131,10 +131,10 @@ class Logbook
 
             if ($open->isNotEmpty()) {
                 $lines[] = '';
-                $lines[] = 'Nog open:';
+                $lines[] = 'Still open:';
 
                 foreach ($open as $agent) {
-                    $lines[] = sprintf('- %s (%s): %s%s', $agent->name, $agent->project?->name ?? 'geen project', $agent->status->label(), $agent->message ? ' – '.$agent->message : '');
+                    $lines[] = sprintf('- %s (%s): %s%s', $agent->name, $agent->project?->name ?? 'no project', $agent->status->label(), $agent->message ? ' – '.$agent->message : '');
                 }
             }
         }

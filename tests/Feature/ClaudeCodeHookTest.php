@@ -58,12 +58,12 @@ class ClaudeCodeHookTest extends TestCase
         $this->hook([
             'hook_event_name' => 'PreToolUse',
             'tool_name' => 'Edit',
-            'tool_input' => ['file_path' => '/Users/sam/Code/webshop/app/Models/Planning.php', 'old_string' => 'secret', 'new_string' => 'geheim'],
+            'tool_input' => ['file_path' => '/Users/sam/Code/webshop/app/Models/Planning.php', 'old_string' => 'secret', 'new_string' => 'hidden'],
         ])->assertOk();
 
         $agent = Agent::firstWhere('key', 'cc:abc123');
         $this->assertSame(Status::Working, $agent->status);
-        $this->assertSame('Bewerkt Planning.php', $agent->message);
+        $this->assertSame('Editing Planning.php', $agent->message);
         $this->assertDatabaseMissing('agent_events', ['message' => 'secret']);
     }
 
@@ -71,7 +71,7 @@ class ClaudeCodeHookTest extends TestCase
     {
         $this->hook(['hook_event_name' => 'Notification', 'message' => 'Claude needs your permission to use Bash']);
         $this->assertSame(Status::Waiting, Agent::firstWhere('key', 'cc:abc123')->status);
-        $this->assertSame('Wacht op toestemming', Agent::firstWhere('key', 'cc:abc123')->message);
+        $this->assertSame('Waiting for permission', Agent::firstWhere('key', 'cc:abc123')->message);
 
         $this->hook(['hook_event_name' => 'Stop']);
         $this->assertSame(Status::Done, Agent::firstWhere('key', 'cc:abc123')->status);
@@ -80,7 +80,7 @@ class ClaudeCodeHookTest extends TestCase
     public function test_subagents_get_work_handed_over_and_back(): void
     {
         $this->hook(['hook_event_name' => 'UserPromptSubmit']);
-        $this->hook(['hook_event_name' => 'PreToolUse', 'tool_name' => 'Agent', 'tool_input' => ['subagent_type' => 'Explore', 'description' => 'Zoek de mailinstellingen']]);
+        $this->hook(['hook_event_name' => 'PreToolUse', 'tool_name' => 'Agent', 'tool_input' => ['subagent_type' => 'Explore', 'description' => 'Find the mail settings']]);
         $this->hook(['hook_event_name' => 'PostToolUse', 'tool_name' => 'Agent', 'tool_input' => ['subagent_type' => 'Explore']]);
         $this->hook(['hook_event_name' => 'SubagentStart', 'agent_id' => 'a1', 'agent_type' => 'Explore']);
 
@@ -91,10 +91,10 @@ class ClaudeCodeHookTest extends TestCase
         $this->assertSame(Status::Working, $sub->status);
         $this->assertSame('Subagent · Explore', $sub->role);
         $this->assertSame($parent->project_id, $sub->project_id);
-        $this->assertDatabaseHas('agent_events', ['type' => 'handoff', 'agent_id' => $parent->id, 'to_agent_id' => $sub->id, 'message' => 'Zoek de mailinstellingen']);
+        $this->assertDatabaseHas('agent_events', ['type' => 'handoff', 'agent_id' => $parent->id, 'to_agent_id' => $sub->id, 'message' => 'Find the mail settings']);
 
         $this->hook(['hook_event_name' => 'PreToolUse', 'agent_id' => 'a1', 'tool_name' => 'Grep', 'tool_input' => []]);
-        $this->assertSame('Zoekt in de code', $sub->fresh()->message);
+        $this->assertSame('Searching the code', $sub->fresh()->message);
 
         $this->hook(['hook_event_name' => 'Stop']);
         $this->assertSame(Status::Working, $sub->fresh()->status);
@@ -113,7 +113,7 @@ class ClaudeCodeHookTest extends TestCase
     {
         $this->hook(['hook_event_name' => 'UserPromptSubmit']);
 
-        foreach (['Bouw A', 'Bouw B', 'Bouw C'] as $description) {
+        foreach (['Build A', 'Build B', 'Build C'] as $description) {
             $this->hook(['hook_event_name' => 'PreToolUse', 'tool_name' => 'Agent', 'tool_input' => ['subagent_type' => 'general-purpose', 'description' => $description]]);
         }
 
@@ -122,7 +122,7 @@ class ClaudeCodeHookTest extends TestCase
         }
 
         $this->assertSame(3, Agent::where('source', 'subagent')->where('status', Status::Working->value)->count());
-        $this->assertSame('Bouw B', Agent::firstWhere('key', 'cc:abc123:x2')->message);
+        $this->assertSame('Build B', Agent::firstWhere('key', 'cc:abc123:x2')->message);
 
         $this->hook(['hook_event_name' => 'SubagentStop', 'agent_id' => 'x1', 'agent_type' => 'general-purpose']);
 

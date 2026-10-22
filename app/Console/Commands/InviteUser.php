@@ -18,7 +18,7 @@ class InviteUser extends Command
         $email = (string) $this->argument('email');
 
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->error('Ongeldig e-mailadres.');
+            $this->error('Invalid email address.');
 
             return self::FAILURE;
         }

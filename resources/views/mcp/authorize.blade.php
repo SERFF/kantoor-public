@@ -1,8 +1,8 @@
-@extends('layout', ['title' => 'Toegang geven – Kantoor'])
+@extends('layout', ['title' => 'Grant access – Kantoor'])
 
 @section('content')
-    <h1>{{ $client->name }} toegang geven?</h1>
-    <p>{{ $client->name }} mag via deze connector namens {{ $user->email ?? auth()->user()->email }} de status van je agents in het kantoor bijwerken en bekijken.</p>
+    <h1>Give {{ $client->name }} access?</h1>
+    <p>Through this connector, {{ $client->name }} may view and update the status of your agents in the office on behalf of {{ $user->email ?? auth()->user()->email }}.</p>
 
     @if (count($scopes) > 0)
         <ul>
@@ -17,7 +17,7 @@
         <input type="hidden" name="state" value="">
         <input type="hidden" name="client_id" value="{{ $client->id }}">
         <input type="hidden" name="auth_token" value="{{ $authToken }}">
-        <button type="submit">Toestaan</button>
+        <button type="submit">Allow</button>
     </form>
 
     <form method="POST" action="{{ route('passport.authorizations.deny') }}">
@@ -26,6 +26,6 @@
         <input type="hidden" name="state" value="">
         <input type="hidden" name="client_id" value="{{ $client->id }}">
         <input type="hidden" name="auth_token" value="{{ $authToken }}">
-        <button type="submit" class="link">Weigeren</button>
+        <button type="submit" class="link">Deny</button>
     </form>
 @endsection

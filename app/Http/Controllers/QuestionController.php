@@ -13,7 +13,7 @@ class QuestionController
     {
         $data = $request->validate(['answer' => 'required|string|max:500']);
 
-        abort_unless($question->isOpen(), 409, 'Deze vraag is al beantwoord of vervallen.');
+        abort_unless($question->isOpen(), 409, 'This question has already been answered or has expired.');
 
         $office->answer($question, $data['answer']);
 

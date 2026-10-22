@@ -21,7 +21,7 @@ class CheckOffice extends Command
     {
         Agent::query()->where('status', Status::Working->value)->get()
             ->filter(fn (Agent $agent) => $agent->last_seen_at?->lt(now()->subMinutes($agent->timeout())))
-            ->each(fn (Agent $agent) => $office->report($agent, Status::Error, 'Geen teken van leven sinds '.$agent->last_seen_at->format('H:i')));
+            ->each(fn (Agent $agent) => $office->report($agent, Status::Error, 'No sign of life since '.$agent->last_seen_at->format('H:i')));
 
         Agent::query()->where('status', Status::Done->value)
             ->where('status_changed_at', '<', now()->subMinutes(config('kantoor.done_to_idle_minutes')))

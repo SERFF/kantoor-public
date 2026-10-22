@@ -1,7 +1,7 @@
-# Beveiliging
+# Security
 
-Heb je een beveiligingsprobleem gevonden, meld het dan niet als gewoon issue. Gebruik op GitHub **Security → Report a vulnerability**, dan zien alleen de beheerders je melding.
+Found a security issue? Please don't report it as a regular issue. On GitHub, use **Security → Report a vulnerability**, so only the maintainers can see your report.
 
-Beschrijf wat je vond, hoe het te reproduceren is en welke versie (commit) je gebruikt. Je krijgt zo snel mogelijk een reactie.
+Describe what you found, how to reproduce it and which version (commit) you are running. You'll get a reply as soon as possible.
 
-Draai je zelf een installatie, houd die dan bij met `git pull` en `composer install` (zie de README onder *Bijwerken*).
+Running your own installation? Keep it up to date with `git pull` and `composer install` (see *Updating* in the README).

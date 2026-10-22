@@ -36,17 +36,17 @@ class OfficeOverview extends Tool
             ->get();
 
         if ($agents->isEmpty()) {
-            return Response::text('Er zijn geen agents die hieraan voldoen.');
+            return Response::text('No agents match.');
         }
 
         return Response::text($agents->map(fn (Agent $agent) => sprintf(
             '- %s (%s, %s): %s%s, %s',
             $agent->name,
             $agent->role ?: $agent->source,
-            $agent->project?->name ?? 'geen project',
+            $agent->project?->name ?? 'no project',
             $agent->status->label(),
             $agent->message ? ' – '.$agent->message : '',
-            $agent->last_seen_at?->locale('nl')->diffForHumans() ?? 'nooit gezien',
+            $agent->last_seen_at?->locale('en')->diffForHumans() ?? 'never seen',
         ))->implode("\n"));
     }
 }

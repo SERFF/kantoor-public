@@ -36,6 +36,6 @@ class PasswordSetupController
 
     protected function ensureValid(User $user, string $hash): void
     {
-        abort_unless(hash_equals(sha1($user->getAuthPassword()), $hash), 403, 'Deze link is al gebruikt of verlopen.');
+        abort_unless(hash_equals(sha1($user->getAuthPassword()), $hash), 403, 'This link has already been used or has expired.');
     }
 }

@@ -1,21 +1,21 @@
-@extends('layout', ['title' => 'Inloggen – Kantoor'])
+@extends('layout', ['title' => 'Log in – Kantoor'])
 
 @section('content')
     <h1>Kantoor</h1>
-    <p>Log in om je kantoor te bekijken of Claude te koppelen.</p>
+    <p>Log in to view your office or connect Claude.</p>
 
     <form method="POST" action="{{ url('/login') }}">
         @csrf
 
-        <label for="email">E-mail</label>
+        <label for="email">Email</label>
         <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username">
         @error('email')<div class="error">{{ $message }}</div>@enderror
 
-        <label for="password">Wachtwoord</label>
+        <label for="password">Password</label>
         <input id="password" type="password" name="password" required autocomplete="current-password">
 
-        <label class="check"><input type="checkbox" name="remember" value="1"> Ingelogd blijven</label>
+        <label class="check"><input type="checkbox" name="remember" value="1"> Remember me</label>
 
-        <button type="submit">Inloggen</button>
+        <button type="submit">Log in</button>
     </form>
 @endsection

@@ -23,7 +23,7 @@ class LoginController
         ]);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages(['email' => 'Deze combinatie van e-mail en wachtwoord klopt niet.']);
+            throw ValidationException::withMessages(['email' => 'The email address or password is incorrect.']);
         }
 
         $request->session()->regenerate();

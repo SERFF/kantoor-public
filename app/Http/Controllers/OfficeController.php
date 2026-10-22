@@ -6,6 +6,7 @@ use App\Models\Agent;
 use App\Models\AgentEvent;
 use App\Models\Alarm;
 use App\Models\Project;
+use App\Models\UsageLimit;
 use App\Office\Logbook;
 use App\Office\Office;
 use App\Office\Status;
@@ -75,6 +76,7 @@ class OfficeController
             'today' => $logbook->today(),
             'star' => $logbook->star(),
             'alarms' => Alarm::query()->with('project')->ringing()->latest('rang_at')->limit(10)->get()->map->toOffice(),
+            'usage' => UsageLimit::current()?->toOffice(),
             'now' => now()->toIso8601String(),
         ]);
     }
@@ -101,7 +103,7 @@ class OfficeController
         $agent->save();
 
         if (isset($data['status'])) {
-            $office->report($agent, Status::from($data['status']), $data['status'] === 'idle' ? 'Door jou vrijgegeven' : null);
+            $office->report($agent, Status::from($data['status']), $data['status'] === 'idle' ? 'Released by you' : null);
         } else {
             $office->broadcast($agent);
         }

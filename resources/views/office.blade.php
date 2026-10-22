@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,41 +15,41 @@
     <header class="top">
         <div class="title">
             <div class="eyebrow">
-                <span>{{ config('kantoor.brand') ? mb_strtoupper(config('kantoor.brand')).' · ' : '' }}VIRTUEEL KANTOOR</span>
-                <span class="live" id="live" data-state="connecting">verbinden…</span>
+                <span>{{ config('kantoor.brand') ? mb_strtoupper(config('kantoor.brand')).' · ' : '' }}VIRTUAL OFFICE</span>
+                <span class="live" id="live" data-state="connecting">connecting…</span>
             </div>
-            <h1>Het kantoor</h1>
-            <p id="summary">Even kijken wie er is…</p>
+            <h1>The office</h1>
+            <p id="summary">Checking who is in…</p>
         </div>
         <div class="stats">
-            <div class="stat"><strong id="count-working">0</strong><span>aan het werk</span></div>
-            <button type="button" class="stat wait" id="stat-waiting" aria-label="Open de eerste agent die op je wacht"><strong id="count-waiting">0</strong><span>wacht op jou</span></button>
-            <div class="stat err"><strong id="count-error">0</strong><span>storing</span></div>
-            <a class="ghost" href="{{ route('logbook') }}">Logboek</a>
-            <a class="ghost tv-open" href="{{ route('tv') }}" target="_blank" rel="noopener">Tv-weergave</a>
+            <div class="stat"><strong id="count-working">0</strong><span>working</span></div>
+            <button type="button" class="stat wait" id="stat-waiting" aria-label="Open the first agent waiting for you"><strong id="count-waiting">0</strong><span>waiting for you</span></button>
+            <div class="stat err"><strong id="count-error">0</strong><span>stuck</span></div>
+            <a class="ghost" href="{{ route('logbook') }}">Logbook</a>
+            <a class="ghost tv-open" href="{{ route('tv') }}" target="_blank" rel="noopener">TV view</a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="ghost">Uitloggen</button>
+                <button type="submit" class="ghost">Log out</button>
             </form>
         </div>
     </header>
 
     <section class="alarms" id="alarms" hidden aria-live="polite"></section>
 
-    <nav class="chips" id="chips" aria-label="Filter op project"></nav>
+    <nav class="chips" id="chips" aria-label="Filter by project"></nav>
 
     <div class="workspace">
         <div class="stage" id="stage">
-            <canvas id="office" role="img" aria-label="Isometrisch kantoor met de agents per project"></canvas>
+            <canvas id="office" role="img" aria-label="Isometric office with the agents per project"></canvas>
             <div class="empty" id="empty" hidden>
-                <h2>Nog niemand op kantoor</h2>
-                <p>Koppel de connector in Claude of zet de Claude Code-hooks aan. Wil je eerst kijken hoe het eruitziet? Draai <code>php artisan kantoor:demo</code>.</p>
+                <h2>Nobody in the office yet</h2>
+                <p>Connect the connector in Claude or turn on the Claude Code hooks. Want to see what it looks like first? Run <code>php artisan kantoor:demo</code>.</p>
             </div>
             <section class="pop" id="detail" role="dialog" aria-modal="false" aria-labelledby="pop-name" hidden></section>
         </div>
         <section class="roster" id="roster">
             <div class="panel-head">
-                <h2 id="list-title">Alle agents</h2>
+                <h2 id="list-title">All agents</h2>
                 <span class="mono" id="list-count"></span>
             </div>
             <div class="cards" id="cards"></div>
@@ -59,22 +59,22 @@
     <div class="columns">
         <section class="panel">
             <div class="panel-head">
-                <h2>Samenwerking</h2>
-                <span class="mono">vandaag</span>
+                <h2>Collaboration</h2>
+                <span class="mono">today</span>
             </div>
             <ol class="feed" id="feed"></ol>
         </section>
         <section class="panel today">
             <div class="panel-head">
-                <h2>Vandaag opgeleverd</h2>
-                <a class="mono today-link" href="{{ route('logbook', ['dagen' => 7]) }}">logboek →</a>
+                <h2>Delivered today</h2>
+                <a class="mono today-link" href="{{ route('logbook', ['days' => 7]) }}">logbook →</a>
             </div>
             <div class="today-body" id="today"></div>
         </section>
         <section class="panel connect">
-            <h2>Koppelen</h2>
-            <p>Connector-URL voor Claude: <code>{{ url('/mcp') }}</code></p>
-            <p>Claude Code-hooks: <code>php artisan kantoor:hook-token "Naam van je Mac"</code></p>
+            <h2>Connect</h2>
+            <p>Connector URL for Claude: <code>{{ url('/mcp') }}</code></p>
+            <p>Claude Code-hooks: <code>php artisan kantoor:hook-token "Name of your Mac"</code></p>
         </section>
     </div>
 </div>

@@ -21,7 +21,7 @@ class DaySummary extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'date' => $schema->string()->description('Day as YYYY-MM-DD. Default today (Europe/Amsterdam).'),
+            'date' => $schema->string()->description('Day as YYYY-MM-DD. Default today (in the office time zone).'),
             'project' => $schema->string()->description('Only this project, e.g. "Webshop".'),
         ];
     }
@@ -40,7 +40,7 @@ class DaySummary extends Tool
                 ?? Project::query()->whereNotNull('match')->get()->first(fn (Project $item) => $item->matches(Str::slug($request->get('project'))));
 
             if (! $project) {
-                return Response::text('Dat project ken ik niet in het kantoor.');
+                return Response::text('That project is not known in the office.');
             }
         }
 

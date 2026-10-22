@@ -42,26 +42,26 @@ class AgentEvent extends Model
 
     public function describe(): string
     {
-        $from = $this->agent?->name ?? 'Iemand';
+        $from = $this->agent?->name ?? 'Someone';
 
         if ($this->type === 'handoff') {
-            $to = $this->toAgent?->name ?? 'een collega';
+            $to = $this->toAgent?->name ?? 'a colleague';
 
-            return trim("{$from} geeft ".($this->message ?: 'werk')." door aan {$to}");
+            return trim("{$from} passes ".($this->message ?: 'work')." on to {$to}");
         }
 
         if ($this->type === 'answer') {
-            return "Je beantwoordde een vraag van {$from}";
+            return "You answered a question from {$from}";
         }
 
         return match ($this->status) {
-            'working' => "{$from} is aan het werk".($this->message ? ": {$this->message}" : ''),
-            'waiting' => "{$from} wacht op jou".($this->message ? ": {$this->message}" : ''),
-            'done' => "{$from} is klaar".($this->message ? ": {$this->message}" : ''),
-            'error' => "{$from} loopt vast".($this->message ? ": {$this->message}" : ''),
-            'sleeping' => "{$from} gaat slapen".($this->message ? ": {$this->message}" : ''),
-            'offline' => "{$from} gaat naar huis",
-            default => "{$from}: ".($this->message ?: 'beschikbaar'),
+            'working' => "{$from} is working".($this->message ? ": {$this->message}" : ''),
+            'waiting' => "{$from} is waiting for you".($this->message ? ": {$this->message}" : ''),
+            'done' => "{$from} is done".($this->message ? ": {$this->message}" : ''),
+            'error' => "{$from} is stuck".($this->message ? ": {$this->message}" : ''),
+            'sleeping' => "{$from} goes to sleep".($this->message ? ": {$this->message}" : ''),
+            'offline' => "{$from} goes home",
+            default => "{$from}: ".($this->message ?: 'available'),
         };
     }
 }

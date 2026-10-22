@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
     Route::get('/', [OfficeController::class, 'index'])->name('office');
     Route::get('/tv', [TvController::class, 'show'])->name('tv');
-    Route::get('/logboek', LogbookController::class)->name('logbook');
+    Route::get('/logbook', LogbookController::class)->name('logbook');
     Route::get('/office/state', [OfficeController::class, 'state'])->name('office.state');
     Route::patch('/office/agents/{agent}', [OfficeController::class, 'update'])->name('office.agents.update');
     Route::post('/office/questions/{question}/answer', [QuestionController::class, 'answer'])->name('office.questions.answer');

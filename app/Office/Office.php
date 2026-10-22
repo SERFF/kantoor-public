@@ -74,7 +74,7 @@ class Office
 
     public function parentByName(string $key): ?Agent
     {
-        if (! preg_match('/^(.+)-(onderzoeker|bouwer|reviewer|tester)(-\d+)?$/', $key, $match)) {
+        if (! preg_match('/^(.+)-(researcher|builder|reviewer|tester|onderzoeker|bouwer)(-\d+)?$/', $key, $match)) {
             return null;
         }
 
@@ -144,9 +144,9 @@ class Office
 
         $agent = $question->agent;
 
-        $event = $agent->events()->create(['type' => 'answer', 'message' => 'Antwoord gegeven op de vraag']);
+        $event = $agent->events()->create(['type' => 'answer', 'message' => 'Answered the question']);
 
-        $agent->forceFill(['status' => Status::Idle, 'message' => 'Antwoord staat klaar', 'status_changed_at' => now()])->save();
+        $agent->forceFill(['status' => Status::Idle, 'message' => 'Answer is ready', 'status_changed_at' => now()])->save();
 
         $this->broadcast($agent, $event);
 
@@ -163,7 +163,7 @@ class Office
 
         $question->forceFill(['collected_at' => now()])->save();
 
-        $this->report($agent, Status::Working, 'Gaat verder met je antwoord');
+        $this->report($agent, Status::Working, 'Continuing with your answer');
 
         return $question;
     }
@@ -210,7 +210,7 @@ class Office
                 event: $event?->load(['agent', 'toAgent']),
             ));
         } catch (Throwable $e) {
-            Log::warning('Kantoor-broadcast mislukt: '.$e->getMessage());
+            Log::warning('Kantoor broadcast failed: '.$e->getMessage());
         }
     }
 

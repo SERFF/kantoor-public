@@ -40,18 +40,18 @@ class GetAnswer extends Tool
         $agent = Agent::query()->firstWhere('key', 'mcp:'.Str::slug($request->get('agent')));
 
         if (! $agent) {
-            return Response::text('Deze agent is onbekend in het kantoor; er staat geen vraag open.');
+            return Response::text('This agent is unknown in the office; there is no open question.');
         }
 
         $deadline = microtime(true) + (int) $request->get('wait_seconds', 0);
 
         do {
             if ($question = $office->collect($agent)) {
-                return Response::text("Antwoord op \"{$question->question}\":\n{$question->answer}");
+                return Response::text("Answer to \"{$question->question}\":\n{$question->answer}");
             }
 
             if (! $agent->openQuestion()->exists()) {
-                return Response::text('Er staat geen vraag open en er is geen nieuw antwoord.');
+                return Response::text('There is no open question and no new answer.');
             }
 
             if (microtime(true) >= $deadline) {
@@ -61,6 +61,6 @@ class GetAnswer extends Tool
             usleep(2_000_000);
         } while (true);
 
-        return Response::text('De vraag is nog niet beantwoord. Vraag het in het gesprek of probeer later opnieuw.');
+        return Response::text('The question has not been answered yet. Ask in the conversation or try again later.');
     }
 }

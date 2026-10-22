@@ -25,7 +25,7 @@ class HandOff extends Tool
         return [
             'from' => $schema->string()->description('Agent that passes the work on (same identifier as in report_status).')->required(),
             'to' => $schema->string()->description('Agent that receives the work.')->required(),
-            'what' => $schema->string()->description('A few Dutch words about what is passed on, e.g. "4 nieuwe bevindingen".'),
+            'what' => $schema->string()->description('A few words about what is passed on, in the user\'s language, e.g. "4 new findings".'),
             'project' => $schema->string()->description('Project for agents that are new.'),
         ];
     }
@@ -50,7 +50,7 @@ class HandOff extends Tool
         $event = $office->handoff($from, $to, $request->get('what'));
 
         if (in_array($to->status, [Status::Idle, Status::Sleeping, Status::Done, Status::Offline], true)) {
-            $office->report($to, Status::Working, 'Pakt '.($request->get('what') ?: 'het werk').' op');
+            $office->report($to, Status::Working, 'Picking up '.($request->get('what') ?: 'the work'));
         }
 
         return Response::text($event->load(['agent', 'toAgent'])->describe().'.');

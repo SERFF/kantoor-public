@@ -15,13 +15,13 @@ enum Status: string
     public function label(): string
     {
         return match ($this) {
-            self::Working => 'Aan het werk',
-            self::Waiting => 'Wacht op jou',
-            self::Done => 'Klaar',
-            self::Error => 'Storing',
-            self::Idle => 'Beschikbaar',
-            self::Sleeping => 'Gepland',
-            self::Offline => 'Naar huis',
+            self::Working => 'Working',
+            self::Waiting => 'Waiting for you',
+            self::Done => 'Done',
+            self::Error => 'Stuck',
+            self::Idle => 'Available',
+            self::Sleeping => 'Scheduled',
+            self::Offline => 'Gone home',
         };
     }
 

@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('kantoor:alert-link {name=Monitoring : Naam van de koppeling} {--revoke : Trek alle alert-links met deze naam in}')]
+#[Signature('kantoor:alert-link {name=Monitoring : Name of the integration} {--revoke : Revoke all alert links with this name}')]
 #[Description('Create a webhook url for error alerts, so new errors ring the phone in the office')]
 class IssueAlertLink extends Command
 {
@@ -17,14 +17,14 @@ class IssueAlertLink extends Command
 
         if ($this->option('revoke')) {
             $count = HookToken::query()->where('kind', HookToken::ALERT)->where('name', $name)->delete();
-            $this->info("{$count} link(s) ingetrokken.");
+            $this->info("{$count} link(s) revoked.");
 
             return self::SUCCESS;
         }
 
         $token = HookToken::issue($name, HookToken::ALERT);
 
-        $this->info('Webhook-URL voor een alertregel in je error-monitor (wordt maar één keer getoond):');
+        $this->info('Webhook URL for an alert rule in your error monitor (shown only once):');
         $this->line(route('hooks.alerts', $token));
 
         return self::SUCCESS;

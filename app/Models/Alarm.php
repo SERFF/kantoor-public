@@ -36,10 +36,10 @@ class Alarm extends Model
     public function label(): string
     {
         return match ($this->action) {
-            'regression' => 'Fout is terug',
-            'frequency' => 'Fout komt vaak voor',
-            'test' => 'Testmelding',
-            default => 'Nieuwe fout',
+            'regression' => 'Error is back',
+            'frequency' => 'Frequent error',
+            'test' => 'Test alert',
+            default => 'New error',
         };
     }
 

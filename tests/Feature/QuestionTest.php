@@ -31,7 +31,7 @@ class QuestionTest extends TestCase
         OfficeServer::tool(ReportStatus::class, [
             'agent' => 'webshop',
             'status' => 'waiting',
-            'question' => 'Welke branch?',
+            'question' => 'Which branch?',
             'options' => ['main', 'develop', 'main'],
         ])->assertOk()->assertSee('get_answer');
 
@@ -42,30 +42,30 @@ class QuestionTest extends TestCase
         $this->actingAs(User::factory()->create());
         $this->getJson('/office/state')
             ->assertOk()
-            ->assertJsonPath('agents.0.question.question', 'Welke branch?');
+            ->assertJsonPath('agents.0.question.question', 'Which branch?');
     }
 
     public function test_options_sent_as_text_are_accepted(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'a', 'status' => 'waiting', 'question' => 'Welke?', 'options' => '["Ja", "Nee"]'])->assertOk();
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'b', 'status' => 'waiting', 'question' => 'Welke?', 'options' => 'Ja | Nee'])->assertOk();
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'c', 'status' => 'waiting', 'question' => 'Welke?', 'options' => range(1, 7)])->assertHasErrors();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'a', 'status' => 'waiting', 'question' => 'Which?', 'options' => '["Yes", "No"]'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'b', 'status' => 'waiting', 'question' => 'Which?', 'options' => 'Yes | No'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'c', 'status' => 'waiting', 'question' => 'Which?', 'options' => range(1, 7)])->assertHasErrors();
 
-        $this->assertSame([['Ja', 'Nee'], ['Ja', 'Nee']], AgentQuestion::query()->orderBy('id')->pluck('options')->all());
+        $this->assertSame([['Yes', 'No'], ['Yes', 'No']], AgentQuestion::query()->orderBy('id')->pluck('options')->all());
     }
 
     public function test_a_question_needs_status_waiting(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'question' => 'Welke branch?'])
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'question' => 'Which branch?'])
             ->assertHasErrors();
     }
 
     public function test_answer_in_the_app_is_collected_once(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Welke branch?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
         $question = AgentQuestion::first();
 
-        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('nog niet beantwoord');
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('not been answered yet');
 
         $this->actingAs(User::factory()->create());
         $this->postJson("/office/questions/{$question->id}/answer", ['answer' => 'develop'])
@@ -78,13 +78,13 @@ class QuestionTest extends TestCase
         OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('develop');
         $this->assertSame(Status::Working, Agent::first()->status);
 
-        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('geen vraag open');
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('no open question');
     }
 
     public function test_moving_on_cancels_the_open_question(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Welke branch?']);
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'message' => 'Antwoord in de chat gekregen']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'message' => 'Got the answer in the chat']);
 
         $this->assertNull(Agent::first()->openQuestion);
         $this->assertNotNull(AgentQuestion::first()->cancelled_at);
@@ -95,54 +95,54 @@ class QuestionTest extends TestCase
 
     public function test_a_new_question_replaces_the_old_one(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Eerste?']);
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Tweede?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'First?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Second?']);
 
-        $this->assertSame('Tweede?', Agent::first()->openQuestion->question);
+        $this->assertSame('Second?', Agent::first()->openQuestion->question);
         $this->assertSame(1, AgentQuestion::query()->open()->count());
     }
 
     public function test_a_new_question_discards_an_old_answer_that_was_never_collected(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Oud?']);
-        app(Office::class)->answer(Agent::first()->openQuestion, 'Oké');
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Old?']);
+        app(Office::class)->answer(Agent::first()->openQuestion, 'Okay');
 
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Nieuw?']);
-        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('nog niet beantwoord')->assertDontSee('Oké');
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'New?']);
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop'])->assertOk()->assertSee('not been answered yet')->assertDontSee('Okay');
 
         $agent = Agent::first();
         $this->assertSame(Status::Waiting, $agent->status);
-        $this->assertSame('Nieuw?', $agent->openQuestion->question);
+        $this->assertSame('New?', $agent->openQuestion->question);
     }
 
     public function test_a_waiting_report_without_question_asks_its_message(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'recikeep', 'status' => 'waiting', 'message' => 'Bestaande lijsten rechtzetten?'])
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'recikeep', 'status' => 'waiting', 'message' => 'Fix the existing lists?'])
             ->assertOk()
             ->assertSee('get_answer');
 
-        $this->assertSame('Bestaande lijsten rechtzetten?', Agent::first()->openQuestion->question);
+        $this->assertSame('Fix the existing lists?', Agent::first()->openQuestion->question);
     }
 
     public function test_a_waiting_report_without_question_keeps_the_open_one(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Welke branch?', 'options' => ['main', 'develop']]);
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'message' => 'Wacht nog steeds']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?', 'options' => ['main', 'develop']]);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'message' => 'Still waiting']);
 
-        $this->assertSame('Welke branch?', Agent::first()->openQuestion->question);
+        $this->assertSame('Which branch?', Agent::first()->openQuestion->question);
         $this->assertSame(1, AgentQuestion::query()->open()->count());
     }
 
     public function test_answering_requires_login(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Welke branch?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
 
         $this->postJson('/office/questions/'.AgentQuestion::first()->id.'/answer', ['answer' => 'develop'])->assertUnauthorized();
     }
 
     public function test_old_questions_are_pruned(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Welke branch?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
         AgentQuestion::query()->update(['updated_at' => now()->subDays(8)]);
 
         $this->artisan('kantoor:check')->assertSuccessful();

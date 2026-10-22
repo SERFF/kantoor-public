@@ -27,7 +27,7 @@ class TvTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $this->get('/tv')->assertOk()->assertSee('css/tv.css', false)->assertSee('"tv":true', false);
-        $this->get('/')->assertOk()->assertSee('Tv-weergave');
+        $this->get('/')->assertOk()->assertSee('TV view');
     }
 
     public function test_tv_view_needs_a_login_or_a_link(): void
@@ -38,9 +38,9 @@ class TvTest extends TestCase
     public function test_tv_link_shows_the_office_without_login(): void
     {
         $office = app(Office::class);
-        $agent = $office->agent('mcp:research', ['project' => 'Intern', 'role' => 'Onderzoeker']);
-        $office->report($agent, Status::Working, 'Speurt websites af');
-        $token = TvScreen::issue('Woonkamer');
+        $agent = $office->agent('mcp:research', ['project' => 'Internal', 'role' => 'Researcher']);
+        $office->report($agent, Status::Working, 'Browsing websites');
+        $token = TvScreen::issue('Living room');
 
         $this->get("/tv/{$token}")->assertOk()->assertSee('"authUrl"', false);
         $this->getJson("/tv/{$token}/state")->assertOk()->assertJsonCount(1, 'agents');
@@ -49,9 +49,9 @@ class TvTest extends TestCase
 
     public function test_unknown_or_revoked_link_is_not_found(): void
     {
-        $token = TvScreen::issue('Woonkamer');
+        $token = TvScreen::issue('Living room');
 
-        $this->artisan('kantoor:tv-link', ['name' => 'Woonkamer', '--revoke' => true])->assertSuccessful();
+        $this->artisan('kantoor:tv-link', ['name' => 'Living room', '--revoke' => true])->assertSuccessful();
 
         $this->get("/tv/{$token}")->assertNotFound();
         $this->getJson("/tv/{$token}/state")->assertNotFound();
@@ -61,7 +61,7 @@ class TvTest extends TestCase
     public function test_tv_link_may_only_listen_to_the_office_channel(): void
     {
         config(['broadcasting.connections.reverb.key' => 'key', 'broadcasting.connections.reverb.secret' => 'secret']);
-        $token = TvScreen::issue('Woonkamer');
+        $token = TvScreen::issue('Living room');
 
         $this->postJson("/tv/{$token}/broadcasting/auth", ['socket_id' => '123.456', 'channel_name' => 'private-office'])
             ->assertOk()
@@ -73,7 +73,7 @@ class TvTest extends TestCase
 
     public function test_command_prints_a_working_link(): void
     {
-        $this->artisan('kantoor:tv-link', ['name' => 'Woonkamer'])
+        $this->artisan('kantoor:tv-link', ['name' => 'Living room'])
             ->expectsOutputToContain('/tv/tv_')
             ->assertSuccessful();
 

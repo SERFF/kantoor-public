@@ -3,10 +3,10 @@
 
     const CFG = window.KANTOOR;
     const DOG_NAME = CFG.dog || 'Yuki';
-    const SIGN = CFG.sign || 'KANTOOR';
+    const SIGN = CFG.sign || 'OFFICE';
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const ACCENT = '#B8F25A';
-    const LABELS = { working: 'Aan het werk', waiting: 'Wacht op jou', done: 'Klaar', error: 'Storing', idle: 'Beschikbaar', sleeping: 'Gepland', offline: 'Naar huis' };
+    const LABELS = { working: 'Working', waiting: 'Waiting for you', done: 'Done', error: 'Error', idle: 'Available', sleeping: 'Scheduled', offline: 'Gone home' };
     const SPEED = 3.2;
     const NONE = 'none';
 
@@ -30,6 +30,8 @@
         star: null,
         visits: [],
         alarms: [],
+        usage: null,
+        gauge: null,
     };
 
     const now = () => performance.now() / 1000;
@@ -44,7 +46,7 @@
         return { h: d.getHours() + d.getMinutes() / 60, dow: d.getDay(), date: d.toDateString() };
     }
 
-    function isBorrel() {
+    function isFridayDrinks() {
         const c = clockHours();
         return c.dow === 5 && c.h >= 16 && c.h < 19;
     }
@@ -58,7 +60,7 @@
     let propsReady = false;
     PROPS.onload = () => { propsReady = true; };
     PROPS.src = CFG.props;
-    const PROP = {"plant":[[3,8,34,56],[49,6,22,58],[84,7,32,57]],"dog":[[6,70,35,34],[54,72,35,32],[102,72,35,32],[154,68,28,36],[195,79,41,25],[245,70,38,34]],"desk":[[6,111,52,45],[70,110,52,46]],"bed":[[134,111,52,33]],"bowl":[[195,111,18,13]],"walk":[[10,176,38,40],[58,176,38,40],[106,176,38,40],[154,176,38,40],[202,176,38,40],[250,176,38,40],[298,176,38,40],[346,176,38,40]]};
+    const PROP = {"plant":[[3,8,34,56],[49,6,22,58],[84,7,32,57]],"dog":[[6,70,35,34],[54,72,35,32],[102,72,35,32],[154,68,28,36],[195,79,41,25],[245,70,38,34]],"desk":[[6,111,52,45],[70,110,52,46]],"bed":[[134,111,52,33]],"bowl":[[195,111,18,13]],"walk":[[10,176,38,40],[58,176,38,40],[106,176,38,40],[154,176,38,40],[202,176,38,40],[250,176,38,40],[298,176,38,40],[346,176,38,40]],"station":[[4,226,36,46]],"table":[[48,232,28,40]],"drinks":[[84,232,28,40]],"cooler":[[120,220,19,52]]};
 
     function drawProp(r, x, y, flip) {
         const w = r[2] / 2;
@@ -207,7 +209,7 @@
                 seats.set(agent.id, seat);
             });
             const project = state.projects.get(block.key);
-            islands.push({ key: block.key, name: project ? project.name : 'Zonder project', x: block.x, y: block.y, w: block.w, d: block.d, desks });
+            islands.push({ key: block.key, name: project ? project.name : 'No project', x: block.x, y: block.y, w: block.w, d: block.d, desks });
         }
 
         const bossBlock = blocks.find((b) => b.key === 'boss');
@@ -224,13 +226,16 @@
         const LH = (W + D) * 8 + OY + 24;
 
         const sign = W >= 16.5 ? 12.4 : null;
-        const board = Math.min(W - 4, 5.6);
-        return { W, D, OX, OY, LW, LH, islands, seats, boss, lane: 0.8, board, sign, coffee: coffeeSpot(D), plaque: plaqueSpot(W, board, sign) };
+        const board = Math.min(W - 4, 4.9);
+        const boardW = Math.max(2.8, Math.min(4.2, W - 0.6 - board));
+        return { W, D, OX, OY, LW, LH, islands, seats, boss, lane: 0.8, board, boardW, sign, coffee: coffeeSpot(D), plaque: plaqueSpot(W, board, boardW, sign) };
     }
 
-    function plaqueSpot(W, board, sign) {
+    const BOARD = { z0: 0.75, z1: 2.6 };
+
+    function plaqueSpot(W, board, boardW, sign) {
         const taken = windowsOf(W).map((wx) => [wx - 0.15, wx + 2.15]);
-        taken.push([board - 0.1, board + 2.9]);
+        taken.push([board - 0.1, board + boardW + 0.1]);
         if (sign !== null) taken.push([sign - 0.3, sign + 3.2]);
         for (let x = W - 2.0; x >= 0.6; x -= 0.1) {
             if (taken.every(([a, b]) => x + 1.5 + 0.2 < a || x - 0.2 > b)) return x;
@@ -346,9 +351,9 @@
         }
     }
 
-    const CHAT = ['Nog koffie?', 'Mooie deploy trouwens', 'Wie heeft de melk op?', 'Tests waren groen!', `${DOG_NAME} is lief vandaag`, 'Nog drukke dag?', 'Lekker bakkie', 'Even de benen strekken'];
-    const CHAT_ALONE = ['Even pauze', 'Lekker bakkie', 'Zo, even ademhalen'];
-    const CHAT_BORREL = ['Proost!', 'Fijn weekend!', 'Nog een bitterbal?', 'Wat een week!', 'Op alle groene tests!', 'Wie trakteert?'];
+    const CHAT = ['More coffee?', 'Nice deploy, by the way', 'Who finished the milk?', 'Tests were green!', `${DOG_NAME} is extra sweet today`, 'Busy day ahead?', 'Lovely cuppa', 'Just stretching my legs'];
+    const CHAT_ALONE = ['Quick break', 'Lovely cuppa', 'Phew, time to breathe'];
+    const CHAT_DRINKS = ['Cheers!', 'Have a great weekend!', 'More snacks?', 'What a week!', 'To all the green tests!', 'Whose round is it?'];
 
     function goAway(agent, rt, spot, aisle, kind, stay) {
         const seat = state.layout.seats.get(agent.id);
@@ -367,13 +372,19 @@
         walk(rt, route(rt.pos, seat, from, seat.aisle), 'seated');
     }
 
-    function loungeSpots() {
+    function lounge() {
         const L = state.layout;
-        if (L.coffee !== null) {
-            const y0 = L.coffee;
-            return [[1.2, y0 + 0.15], [1.4, y0 + 0.85], [1.2, y0 + 1.5], [1.45, y0 - 0.3], [1.05, y0 + 2.1], [1.35, y0 + 2.4]].map(([x, y]) => ({ x, y }));
-        }
-        return [[L.W - 1.3, L.D - 0.95], [L.W - 2.05, L.D - 0.75], [L.W - 1.65, L.D - 0.5], [L.W - 2.6, L.D - 0.95], [L.W - 3.2, L.D - 0.7], [L.W - 2.9, L.D - 0.45]].map(([x, y]) => ({ x, y }));
+        const t = { x: L.W - 2.2, y: L.D - 0.85 };
+        return {
+            table: t,
+            station: { x: L.W - 0.85, y: L.D - 1.55 },
+            cooler: { x: L.W - 0.8, y: L.D - 2.45 },
+            spots: [[-0.6, -0.15], [0.6, -0.15], [-0.3, -0.45], [0.35, -0.45], [-0.45, 0.42], [0.45, 0.38]].map(([dx, dy]) => ({ x: t.x + dx, y: t.y + dy })),
+        };
+    }
+
+    function loungeSpots() {
+        return lounge().spots;
     }
 
     function inLounge() {
@@ -390,16 +401,16 @@
         loungeCheck = t + 6;
         const L = state.layout;
         const spots = loungeSpots();
-        const borrel = isBorrel();
+        const drinks = isFridayDrinks();
         const there = inLounge();
-        const cap = borrel ? spots.length : Math.min(3, spots.length);
+        const cap = drinks ? spots.length : Math.min(3, spots.length);
         if (there.length >= cap) return;
-        if (!borrel && Math.random() > 0.3) return;
+        if (!drinks && Math.random() > 0.3) return;
         const nowMs = Date.now();
         const free = visibleAgents().filter((a) => {
             const rt = state.runtime.get(a.id);
             return (a.status === 'idle' || a.status === 'done') && rt && rt.mode === 'seated' && L.seats.has(a.id)
-                && a.status_changed_at && nowMs - Date.parse(a.status_changed_at) > (borrel ? 20000 : 240000);
+                && a.status_changed_at && nowMs - Date.parse(a.status_changed_at) > (drinks ? 20000 : 240000);
         });
         if (!free.length) return;
         const taken = new Set(there.map((a) => (state.runtime.get(a.id).away || {}).slot));
@@ -407,7 +418,7 @@
         if (slot < 0) return;
         const agent = free[Math.floor(Math.random() * free.length)];
         const rt = state.runtime.get(agent.id);
-        if (goAway(agent, rt, spots[slot], spots[slot].y, 'lounge', borrel ? 900 : 45 + Math.random() * 75)) {
+        if (goAway(agent, rt, spots[slot], spots[slot].y, 'lounge', drinks ? 900 : 45 + Math.random() * 75)) {
             rt.away.slot = slot;
             rt.nextChat = t + 3 + Math.random() * 4;
         }
@@ -440,7 +451,7 @@
             if (rt.mode === 'visit' && rt.carry) rt.carry = false;
             if (rt.mode === 'lounge' && t > (rt.nextChat || 0)) {
                 rt.nextChat = t + 7 + Math.random() * 9;
-                const lines = isBorrel() ? CHAT_BORREL : (lounge.length > 1 ? CHAT : CHAT_ALONE);
+                const lines = isFridayDrinks() ? CHAT_DRINKS : (lounge.length > 1 ? CHAT : CHAT_ALONE);
                 if (Math.random() < 0.7) rt.bubble = { text: lines[Math.floor(Math.random() * lines.length)], until: t + 4 };
             }
             if (rt.mode !== 'walking' || !rt.path) continue;
@@ -649,9 +660,10 @@
         });
 
         const wb = L.board;
-        poly([P(wb - 0.08, 0, 0.92), P(wb + 2.88, 0, 0.92), P(wb + 2.88, 0, 2.38), P(wb - 0.08, 0, 2.38)], '#9AA0AE');
-        poly([P(wb, 0, 1.0), P(wb + 2.8, 0, 1.0), P(wb + 2.8, 0, 2.3), P(wb, 0, 2.3)], '#EDEBE3');
-        box(wb, 0, 0.95, 2.8, 0.12, 0.04, '#B7BCC8', '#8E93A0', '#A2A7B4');
+        const bw = L.boardW;
+        poly([P(wb - 0.08, 0, BOARD.z0 - 0.08), P(wb + bw + 0.08, 0, BOARD.z0 - 0.08), P(wb + bw + 0.08, 0, BOARD.z1 + 0.08), P(wb - 0.08, 0, BOARD.z1 + 0.08)], '#9AA0AE');
+        poly([P(wb, 0, BOARD.z0), P(wb + bw, 0, BOARD.z0), P(wb + bw, 0, BOARD.z1), P(wb, 0, BOARD.z1)], '#EDEBE3');
+        box(wb, 0, BOARD.z0 - 0.05, bw, 0.12, 0.04, '#B7BCC8', '#8E93A0', '#A2A7B4');
 
         for (let gx = 0; gx < W; gx++) {
             for (let gy = 0; gy < D; gy++) {
@@ -827,9 +839,11 @@
 
         const wb = L.board;
         const notes = ['#F5C46B', '#8DB8FF', '#FF8A80', '#7FE0A0', ACCENT];
-        for (let i = 0; i < 9; i++) {
-            const nx = wb + 0.2 + (i % 3) * 0.9;
-            const nz = 2.05 - Math.floor(i / 3) * 0.35;
+        const usage = usageNow();
+        if (usage) drawUsageBoard(usage, t);
+        for (let i = 0; i < (usage ? 0 : 9); i++) {
+            const nx = wb + 0.4 + (i % 3) * (L.boardW - 1.1) / 2;
+            const nz = 2.3 - Math.floor(i / 3) * 0.5;
             poly([P(nx, 0, nz - 0.22), P(nx + 0.32, 0, nz - 0.22), P(nx + 0.32, 0, nz), P(nx, 0, nz)], notes[(i + Math.floor(t / 6)) % notes.length]);
             poly([P(nx + 0.05, 0, nz - 0.08), P(nx + 0.27, 0, nz - 0.08), P(nx + 0.27, 0, nz - 0.06), P(nx + 0.05, 0, nz - 0.06)], 'rgba(26,20,16,0.35)');
         }
@@ -852,7 +866,7 @@
             }
         }
 
-        if (isBorrel()) drawBunting(t);
+        if (isFridayDrinks()) drawBunting(t);
         drawPlaque();
 
         const cl = P(0, Math.min(D - 1, 5.2), 2.3);
@@ -884,6 +898,171 @@
                 ctx.fillRect(Math.round(q[0] + Math.sin(ph * 6 + k * 2) * 1.5), Math.round(q[1]), 1, 2);
             }
         }
+    }
+
+    function usageNow() {
+        const u = state.usage;
+        if (!u || !u.week) return null;
+        const t = Date.now();
+        const resets = u.week.resets_at ? Date.parse(u.week.resets_at) : null;
+        const fresh = resets !== null && resets <= t;
+        const used = fresh ? 0 : Math.max(0, Math.min(100, u.week.used));
+        const week = 7 * 24 * 3600 * 1000;
+        const pace = resets !== null && !fresh ? Math.max(0, Math.min(100, (1 - (resets - t) / week) * 100)) : null;
+        const age = u.reported_at ? (t - Date.parse(u.reported_at)) / 60000 : null;
+        return { used, left: 100 - used, pace, resets: fresh ? null : resets, fresh, age, stale: age !== null && age > 180, five: u.five_hour ? u.five_hour.used : null };
+    }
+
+    function usageTone(used) {
+        return used >= 90 ? '#C8372D' : used >= 75 ? '#D97A1E' : '#1F3A6B';
+    }
+
+    function usageReset(ms) {
+        if (!ms) return null;
+        const d = new Date(ms);
+        const day = d.toLocaleDateString('en-GB', { weekday: 'short' }).replace('.', '');
+        return `${day} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    function usageAge(min) {
+        if (min === null) return '';
+        if (min < 2) return 'just now';
+        if (min < 60) return `${Math.round(min)} min ago`;
+        if (min < 48 * 60) return Math.round(min / 60) === 1 ? '1 hour ago' : `${Math.round(min / 60)} hours ago`;
+        return `${Math.round(min / 1440)} days ago`;
+    }
+
+    function usageSummary(u) {
+        const parts = [`Weekly tokens: ${u.used}% used, ${u.left}% left`];
+        if (u.fresh) parts.push('new week started');
+        else if (u.resets) parts.push(`resets ${usageReset(u.resets)}`);
+        if (u.pace !== null) parts.push(u.used > u.pace + 3 ? `ahead of pace (${Math.round(u.pace)}% of the week has passed)` : `on track (${Math.round(u.pace)}% of the week has passed)`);
+        if (u.five !== null) parts.push(`5-hour window: ${u.five}%`);
+        parts.push(`updated ${usageAge(u.age)}`);
+        return parts.join(' · ');
+    }
+
+    function drawUsageBoard(u, t) {
+        const L = state.layout;
+        const o = P(L.board, 0, BOARD.z1);
+        const BW = L.boardW * 16;
+        const BH = (BOARD.z1 - BOARD.z0) * 16;
+        const PIX = '"Pixelify Sans", "IBM Plex Sans", system-ui, sans-serif';
+        const ink = u.stale ? '#8E93A0' : '#1F3A6B';
+        const tone = u.stale ? '#8E93A0' : usageTone(u.used);
+
+        const g = state.gauge || (state.gauge = { v: u.left });
+        g.v += (u.left - g.v) * (reduceMotion ? 1 : 0.06);
+        const wobble = reduceMotion || u.stale ? 0 : Math.sin(t * 3.1) * 0.6 + Math.sin(t * 7.3) * 0.25;
+
+        ctx.save();
+        ctx.setTransform(2, 1, 0, 2, o[0] * 2, o[1] * 2);
+        ctx.textBaseline = 'alphabetic';
+
+        const split = Math.round(BW * 0.5);
+        const r = Math.min(split / 2 - 3, BH - 11);
+        const cx = 3 + r + 1;
+        const cy = BH - 4.5;
+
+        ctx.font = `700 4.4px ${FONT}`;
+        ctx.letterSpacing = '0.7px';
+        ctx.fillStyle = ink;
+        ctx.textAlign = 'left';
+        ctx.fillText('WEEK TANK', 3, 6);
+        ctx.letterSpacing = '0px';
+
+        const seg = 12;
+        const thick = Math.max(3, r * 0.28);
+        for (let i = 0; i < seg; i++) {
+            const a0 = Math.PI + (i / seg) * Math.PI + 0.05;
+            const a1 = Math.PI + ((i + 1) / seg) * Math.PI - 0.05;
+            const f = i / (seg - 1);
+            const lit = (i + 0.5) / seg * 100 <= g.v;
+            const col = f < 0.2 ? '#D9483B' : f < 0.45 ? '#E5A23A' : '#4FA44A';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, a0, a1);
+            ctx.arc(cx, cy, r - thick, a1, a0, true);
+            ctx.closePath();
+            ctx.fillStyle = lit && !u.stale ? col : 'rgba(31,58,107,0.13)';
+            ctx.fill();
+        }
+
+        ctx.font = `700 4px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#C8372D';
+        ctx.fillText('E', cx - r + thick / 2, cy + 4.2);
+        ctx.fillStyle = '#2F7D32';
+        ctx.fillText('F', cx + r - thick / 2, cy + 4.2);
+
+        if (u.pace !== null && !u.stale) {
+            const pa = Math.PI + ((100 - u.pace) / 100) * Math.PI;
+            ctx.save();
+            ctx.translate(cx + Math.cos(pa) * (r + 1.8), cy + Math.sin(pa) * (r + 1.8));
+            ctx.rotate(pa + Math.PI / 2);
+            ctx.fillStyle = ink;
+            ctx.beginPath();
+            ctx.moveTo(0, 1.6);
+            ctx.lineTo(-1.4, -0.8);
+            ctx.lineTo(1.4, -0.8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        const na = Math.PI + (Math.max(0, Math.min(100, g.v + wobble)) / 100) * Math.PI;
+        ctx.strokeStyle = '#1A1410';
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(na) * (r - 1.5), cy + Math.sin(na) * (r - 1.5));
+        ctx.stroke();
+        ctx.fillStyle = '#1A1410';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = tone;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(31,58,107,0.22)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(split + 1.5, 4);
+        ctx.lineTo(split + 1.5, BH - 3);
+        ctx.stroke();
+
+        const tx = BW - 3;
+        ctx.textAlign = 'right';
+        ctx.fillStyle = tone;
+        ctx.font = `700 ${Math.round(BH * 0.42)}px ${PIX}`;
+        ctx.fillText(`${u.used}%`, tx, BH * 0.42);
+        ctx.font = `600 3.4px ${FONT}`;
+        ctx.letterSpacing = '0.4px';
+        ctx.fillStyle = ink;
+        ctx.fillText('USED', tx, BH * 0.42 + 4.4);
+        ctx.letterSpacing = '0px';
+        ctx.font = `700 ${Math.round(BH * 0.18)}px ${PIX}`;
+        ctx.fillStyle = u.stale ? ink : u.left <= 10 ? '#C8372D' : u.left <= 25 ? '#D97A1E' : '#2F7D32';
+        ctx.fillText(`${u.left}% left`, tx, BH * 0.79);
+        ctx.font = `500 3.4px ${FONT}`;
+        ctx.fillStyle = '#6B7180';
+        const foot = u.stale ? `updated ${usageAge(u.age)}` : u.fresh ? 'new week' : (u.resets ? `resets ${usageReset(u.resets)}` : '');
+        ctx.fillText(foot, tx, BH - 1.8);
+
+        ctx.restore();
+    }
+
+    function boardHit(e) {
+        const L = state.layout;
+        if (!L) return false;
+        const r = canvas.getBoundingClientRect();
+        const sx = (e.clientX - r.left) / r.width * L.LW;
+        const sy = (e.clientY - r.top) / r.height * L.LH;
+        const x = (sx - L.OX) / 16;
+        const z = (L.OY + x * 8 - sy) / 16;
+        return x >= L.board && x <= L.board + L.boardW && z >= BOARD.z0 && z <= BOARD.z1;
     }
 
     function drawBunting(t) {
@@ -943,7 +1122,7 @@
         poly([P(x0, 0, 1.15), P(x0 + 1.5, 0, 1.15), P(x0 + 1.5, 0, 2.6), P(x0, 0, 2.6)], '#6B4E36');
         poly([P(x0 + 0.08, 0, 1.23), P(x0 + 1.42, 0, 1.23), P(x0 + 1.42, 0, 2.52), P(x0 + 0.08, 0, 2.52)], '#F4EEDC');
         poly([P(x0 + 0.08, 0, 2.26), P(x0 + 1.42, 0, 2.26), P(x0 + 1.42, 0, 2.52), P(x0 + 0.08, 0, 2.52)], '#C98A1E');
-        wallTextCentered('TOPPER', x0 + 0.75, 2.31, 4, '#2A1C12', 700);
+        wallTextCentered('MVP', x0 + 0.75, 2.31, 4, '#2A1C12', 700);
         if (portraitsReady) {
             const index = ((star.avatar | 0) % 24 + 24) % 24;
             const cw = PORTRAITS.naturalWidth / 6;
@@ -1033,8 +1212,8 @@
         const L = state.layout;
         const x0 = 1.05;
         const y0 = 1.3;
-        const x1 = L.W - 1.0;
-        const y1 = L.D - 0.9;
+        const x1 = L.W - 0.35;
+        const y1 = L.D - 0.3;
         const pts = [[x0, y0], [x0, y1], [x1, y1], [x1, y0], [x0, y0]];
         const per = 2 * ((x1 - x0) + (y1 - y0));
         const run = per / 0.55;
@@ -1271,7 +1450,7 @@
             ctx.fillRect(X + 5, top + 14, 5, 1);
         }
         if (rt.mode === 'lounge') {
-            if (isBorrel()) {
+            if (isFridayDrinks()) {
                 ctx.fillStyle = '#F5C46B';
                 ctx.fillRect(X + 5, top + 15, 3, 5);
                 ctx.fillStyle = '#FBF6EA';
@@ -1418,6 +1597,14 @@
         ctx.globalAlpha = 1;
     }
 
+    function drawFurniture(r, at) {
+        if (!propsReady) return;
+        const p = P(at.x, at.y, 0);
+        ctx.fillStyle = 'rgba(40,24,10,0.28)';
+        ctx.fillRect(Math.round(p[0]) - Math.round(r[2] / 4), Math.round(p[1]) - 1, Math.round(r[2] / 2), 2);
+        drawProp(r, Math.round(p[0]), Math.round(p[1]) + 1, false);
+    }
+
     function drawPlant(x, y, t) {
         const p = P(x, y, 0);
         if (propsReady) {
@@ -1521,7 +1708,12 @@
                 items.push({ k: pl[0] + pl[1] + 0.4, dim, fn: () => drawPlant(pl[0], pl[1], t) });
             }
         }
-        for (const pl of [[0.6, 0.6], [L.W - 0.7, 0.6], [0.6, L.D - 0.7], [L.W - 0.7, L.D - 0.7]]) {
+        const lg = lounge();
+        const tableProp = isFridayDrinks() ? PROP.drinks[0] : PROP.table[0];
+        items.push({ k: lg.station.x + lg.station.y + 0.3, dim: false, fn: () => drawFurniture(PROP.station[0], lg.station) });
+        items.push({ k: lg.cooler.x + lg.cooler.y + 0.2, dim: false, fn: () => drawFurniture(PROP.cooler[0], lg.cooler) });
+        items.push({ k: lg.table.x + lg.table.y, dim: false, fn: () => drawFurniture(tableProp, lg.table) });
+        for (const pl of [[0.6, 0.6], [L.W - 0.7, 0.6], [0.6, L.D - 0.7], [L.W - 0.7, L.D - 3.3]]) {
             items.push({ k: pl[0] + pl[1] + 0.4, dim: false, fn: () => drawPlant(pl[0], pl[1], t) });
         }
         items.push({ k: dog.pos ? dog.pos.x + dog.pos.y : 0, dim: false, fn: () => drawDog(t) });
@@ -1536,17 +1728,17 @@
 
         drawGlows(t);
         for (const island of L.islands) drawIsland(island);
-        const jp = P(b.door.x, b.y, 2.35);
-        tag('JIJ', jp[0], jp[1], ACCENT, true);
+        const jp = P(b.seat.x, b.seat.y, 2.8);
+        tag('YOU', jp[0], jp[1], ACCENT, true);
         const calls = ringing();
         if (calls.length) {
             const pp = P(b.desk.x + 0.3, b.desk.y + 0.3, 1.25);
-            const label = calls.length === 1 ? `☎ ${calls[0].project}` : `☎ ${calls.length} meldingen`;
+            const label = calls.length === 1 ? `☎ ${calls[0].project}` : `☎ ${calls.length} alerts`;
             pill(label, pp[0], pp[1] - (Math.floor(t * 3) % 2), '#D9483B', '#FFFFFF', fs(10));
         }
         if (L.plaque !== null && state.star) {
             const sp = P(L.plaque + 0.75, 0, 2.66);
-            pill(`★ ${state.star.name} · ${state.star.count} deze week`, sp[0], sp[1] - 1, '#C98A1E', '#14161B', fs(9));
+            pill(`★ ${state.star.name} · ${state.star.count} this week`, sp[0], sp[1] - 1, '#C98A1E', '#14161B', fs(9));
         }
 
         drawPackets(t);
@@ -1638,6 +1830,7 @@
         state.today = data.today || null;
         state.star = data.star || null;
         state.alarms = data.alarms || [];
+        state.usage = data.usage || null;
         const seen = new Set();
         for (const agent of data.agents) {
             upsertAgent(agent, state.layout !== null);
@@ -1691,10 +1884,10 @@
 
         const islands = state.layout ? state.layout.islands.length : 0;
         const done = state.today ? state.today.done : 0;
-        const doneText = done ? ` Vandaag ${done} ${done === 1 ? 'ding' : 'dingen'} opgeleverd.` : '';
+        const doneText = done ? ` ${done} ${done === 1 ? 'thing' : 'things'} delivered today.` : '';
         document.getElementById('summary').textContent = agents.length
-            ? `${agents.length} ${agents.length === 1 ? 'agent' : 'agents'} op ${islands} ${islands === 1 ? 'eiland' : 'eilanden'}.${doneText}`
-            : `Er is nog niemand binnen.${doneText}`;
+            ? `${agents.length} ${agents.length === 1 ? 'agent' : 'agents'} in ${islands} ${islands === 1 ? 'island' : 'islands'}.${doneText}`
+            : `Nobody's in yet.${doneText}`;
         document.getElementById('empty').hidden = agents.length > 0;
 
         renderChips(agents);
@@ -1715,7 +1908,7 @@
         state.alarms = payload.alarms || [];
         if (payload.ringing) {
             dog.bark = now() + 2.5;
-            dog.barkText = 'Woef! De telefoon!';
+            dog.barkText = 'Woof! The phone!';
             focusSpot(() => { const b = state.layout.boss; return P(b.desk.x + 0.3, b.desk.y + 0.3, 0.9); });
         }
         renderAlarms();
@@ -1739,7 +1932,7 @@
             const title = document.createElement('strong');
             title.textContent = `${alarm.label} in ${alarm.project}`;
             const sub = document.createElement('span');
-            sub.textContent = [alarm.short_id, alarm.level, alarm.times_seen > 1 ? `${alarm.times_seen}× gezien` : null, `sinds ${clock(alarm.rang_at)}`].filter(Boolean).join(' · ');
+            sub.textContent = [alarm.short_id, alarm.level, alarm.times_seen > 1 ? `seen ${alarm.times_seen}×` : null, `since ${clock(alarm.rang_at)}`].filter(Boolean).join(' · ');
             text.append(title, sub);
             row.append(icon, text);
             if (!CFG.tv) {
@@ -1750,12 +1943,12 @@
                     link.href = alarm.url;
                     link.target = '_blank';
                     link.rel = 'noopener';
-                    link.textContent = 'Bekijk melding';
+                    link.textContent = 'View alert';
                     actions.append(link);
                 }
                 const answer = document.createElement('button');
                 answer.type = 'button';
-                answer.textContent = 'Opnemen';
+                answer.textContent = 'Pick up';
                 answer.addEventListener('click', () => answerAlarm(alarm.id, answer));
                 actions.append(answer);
                 row.append(actions);
@@ -1766,7 +1959,7 @@
             const all = document.createElement('button');
             all.type = 'button';
             all.className = 'alarm-all';
-            all.textContent = `Alle ${list.length} opnemen`;
+            all.textContent = `Pick up all ${list.length}`;
             all.addEventListener('click', () => answerAlarm(null, all));
             rows.push(all);
         }
@@ -1786,7 +1979,7 @@
             renderAlarms();
         } catch (e) {
             button.disabled = false;
-            button.textContent = 'Opnieuw proberen';
+            button.textContent = 'Try again';
         }
     }
 
@@ -1797,7 +1990,7 @@
         if (!today || !today.done) {
             const p = document.createElement('p');
             p.className = 'today-empty';
-            p.textContent = 'Nog niets opgeleverd vandaag.';
+            p.textContent = 'Nothing delivered yet today.';
             el.replaceChildren(p);
             return;
         }
@@ -1806,7 +1999,7 @@
         const n = document.createElement('strong');
         n.textContent = String(today.done);
         const label = document.createElement('span');
-        label.textContent = `${today.done === 1 ? 'oplevering' : 'opleveringen'} over ${today.projects.length} ${today.projects.length === 1 ? 'project' : 'projecten'}`;
+        label.textContent = `${today.done === 1 ? 'delivery' : 'deliveries'} across ${today.projects.length} ${today.projects.length === 1 ? 'project' : 'projects'}`;
         total.append(n, label);
         el.replaceChildren(total, ...today.projects.slice(0, 5).map((project) => {
             const box = document.createElement('div');
@@ -1823,8 +2016,8 @@
                 const li = document.createElement('li');
                 const time = document.createElement('time');
                 time.textContent = item.time;
-                li.append(time, `${item.agent}: ${item.message || 'klaar'}`);
-                li.title = `${item.agent}: ${item.message || 'klaar'}`;
+                li.append(time, `${item.agent}: ${item.message || 'done'}`);
+                li.title = `${item.agent}: ${item.message || 'done'}`;
                 ul.append(li);
             }
             box.append(h, ul);
@@ -1841,8 +2034,8 @@
         if (!waiting.length) { el.replaceChildren(); return; }
         const head = document.createElement('div');
         head.className = 'tv-wait-head';
-        const more = waiting.length > 3 ? `+${waiting.length - 3} meer` : '';
-        head.append(waiting.length === 1 ? '1 collega wacht op jou' : `${waiting.length} collega's wachten op jou`);
+        const more = waiting.length > 3 ? `+${waiting.length - 3} more` : '';
+        head.append(waiting.length === 1 ? '1 colleague is waiting for you' : `${waiting.length} colleagues are waiting for you`);
         if (more) {
             const extra = document.createElement('span');
             extra.textContent = more;
@@ -1860,7 +2053,7 @@
             const project = state.projects.get(agent.project_id);
             name.textContent = project ? `${agent.name} · ${project.name}` : agent.name;
             const msg = document.createElement('span');
-            msg.textContent = agent.question ? agent.question.question : (agent.message || 'Heeft je nodig');
+            msg.textContent = agent.question ? agent.question.question : (agent.message || 'Needs you');
             body.append(name, msg);
             row.append(portrait, body);
             return row;
@@ -1869,7 +2062,7 @@
 
     function renderChips(agents) {
         const chips = document.getElementById('chips');
-        const items = [{ key: 'all', label: `Alle projecten (${agents.length})` }];
+        const items = [{ key: 'all', label: `All projects (${agents.length})` }];
         for (const island of state.layout ? state.layout.islands : []) {
             items.push({ key: island.key, label: island.name, count: island.desks.length });
         }
@@ -1900,7 +2093,7 @@
     function renderCards(agents) {
         const list = state.filter === 'all' ? agents : agents.filter((a) => String(projectKey(a)) === String(state.filter));
         const island = state.layout && state.layout.islands.find((i) => String(i.key) === String(state.filter));
-        document.getElementById('list-title').textContent = island ? island.name : 'Alle agents';
+        document.getElementById('list-title').textContent = island ? island.name : 'All agents';
         document.getElementById('list-count').textContent = String(list.length);
         const order = { waiting: 0, error: 1, working: 2, done: 3, idle: 4, sleeping: 5 };
         list.sort((a, b) => (order[a.status] - order[b.status]) || a.name.localeCompare(b.name));
@@ -1938,7 +2131,7 @@
                 const star = document.createElement('span');
                 star.className = 'card-star';
                 star.textContent = '★';
-                star.title = `Medewerker van de week: ${state.star.count} opleveringen`;
+                star.title = `Employee of the week: ${state.star.count} ${state.star.count === 1 ? 'delivery' : 'deliveries'}`;
                 head.append(star);
             }
             head.append(pillEl);
@@ -1954,7 +2147,7 @@
             role.append([agent.role, project ? project.name : null].filter(Boolean).join(' · '));
             const msg = document.createElement('span');
             msg.className = 'card-msg';
-            msg.textContent = agent.question ? `Vraag: ${agent.question.question}` : (agent.message || (agent.last_seen_at ? `Laatst gezien ${ago(agent.last_seen_at)}` : ''));
+            msg.textContent = agent.question ? `Question: ${agent.question.question}` : (agent.message || (agent.last_seen_at ? `Last seen ${ago(agent.last_seen_at)}` : ''));
             if (agent.question) card.dataset.question = 'true';
             body.append(head, role, msg);
             card.append(portrait, body);
@@ -1967,7 +2160,7 @@
         if (!state.events.length) {
             const li = document.createElement('li');
             li.className = 'none';
-            li.textContent = 'Nog geen activiteit.';
+            li.textContent = 'No activity yet.';
             feed.replaceChildren(li);
             return;
         }
@@ -2032,30 +2225,30 @@
         const close = document.createElement('button');
         close.type = 'button';
         close.className = 'pop-close';
-        close.setAttribute('aria-label', 'Sluiten');
+        close.setAttribute('aria-label', 'Close');
         close.textContent = '×';
         close.addEventListener('click', () => select(null));
         head.append(portrait, titles, pillEl, close);
 
         const message = document.createElement('p');
         message.className = 'pop-msg';
-        message.textContent = agent.message || 'Geen bericht.';
+        message.textContent = agent.message || 'No message.';
 
         const meta = document.createElement('p');
         meta.className = 'detail-meta';
-        const source = { mcp: 'Skill of geplande taak', claude_code: 'Claude Code-sessie', subagent: 'Subagent in Claude Code' }[agent.source] || agent.source;
-        meta.textContent = `${source} · laatst gezien ${agent.last_seen_at ? ago(agent.last_seen_at) : 'nooit'}`;
+        const source = { mcp: 'Skill or scheduled task', claude_code: 'Claude Code session', subagent: 'Subagent in Claude Code' }[agent.source] || agent.source;
+        meta.textContent = `${source} · last seen ${agent.last_seen_at ? ago(agent.last_seen_at) : 'never'}`;
 
         const details = document.createElement('details');
         details.className = 'pop-edit';
         details.open = editing;
         const summary = document.createElement('summary');
-        summary.textContent = 'Bewerken';
+        summary.textContent = 'Edit';
         const form = document.createElement('form');
         const datalistId = 'project-options';
         form.append(
-            field('Naam', 'name', agent.name),
-            field('Functie', 'role', agent.role || ''),
+            field('Name', 'name', agent.name),
+            field('Role', 'role', agent.role || ''),
             field('Project', 'project', project ? project.name : '', datalistId),
         );
         const datalist = document.createElement('datalist');
@@ -2070,13 +2263,13 @@
         const save = document.createElement('button');
         save.type = 'submit';
         save.className = 'btn';
-        save.textContent = 'Opslaan';
+        save.textContent = 'Save';
         actions.append(save);
         if (agent.status === 'error' || agent.status === 'waiting') {
-            actions.append(actionButton('Vrijgeven', () => patch(agent.id, { status: 'idle' })));
+            actions.append(actionButton('Release', () => patch(agent.id, { status: 'idle' })));
         }
         if (agent.source !== 'mcp') {
-            actions.append(actionButton('Naar huis sturen', () => patch(agent.id, { status: 'offline' })));
+            actions.append(actionButton('Send home', () => patch(agent.id, { status: 'offline' })));
         }
         const note = document.createElement('p');
         note.className = 'form-msg';
@@ -2103,7 +2296,7 @@
         wrap.className = 'question';
         const label = document.createElement('p');
         label.className = 'question-label';
-        label.textContent = `Vraag · ${clock(question.asked_at)}`;
+        label.textContent = `Question · ${clock(question.asked_at)}`;
         const text = document.createElement('p');
         text.className = 'question-text';
         text.textContent = question.question;
@@ -2125,7 +2318,7 @@
         field.className = 'field';
         const l = document.createElement('label');
         l.htmlFor = 'answer-text';
-        l.textContent = question.options.length ? 'Of typ zelf een antwoord' : 'Jouw antwoord';
+        l.textContent = question.options.length ? 'Or type your own answer' : 'Your answer';
         const input = document.createElement('textarea');
         input.id = 'answer-text';
         input.name = 'answer';
@@ -2140,7 +2333,7 @@
         const submit = document.createElement('button');
         submit.type = 'submit';
         submit.className = 'btn';
-        submit.textContent = 'Beantwoorden';
+        submit.textContent = 'Send answer';
         actions.append(submit);
         wrap.append(field, actions, note);
         wrap.addEventListener('submit', (e) => {
@@ -2153,7 +2346,7 @@
 
     async function answerQuestion(id, answer, form, note) {
         form.querySelectorAll('button, textarea').forEach((el) => { el.disabled = true; });
-        note.textContent = 'Versturen…';
+        note.textContent = 'Sending…';
         const response = await fetch(`${CFG.questionUrl}/${id}/answer`, {
             method: 'POST',
             credentials: 'same-origin',
@@ -2162,7 +2355,7 @@
         });
         if (!response.ok) {
             form.querySelectorAll('button, textarea').forEach((el) => { el.disabled = false; });
-            note.textContent = response.status === 409 ? 'Deze vraag is al beantwoord of vervallen.' : 'Versturen mislukt.';
+            note.textContent = response.status === 409 ? 'This question has already been answered or has expired.' : "Couldn't send your answer.";
             if (response.status === 409) loadState();
             return;
         }
@@ -2170,7 +2363,7 @@
         if (document.activeElement) document.activeElement.blur();
         onChanged({ agents: [data.agent] });
         const fresh = document.querySelector('#detail .pop-msg');
-        if (fresh) fresh.textContent = 'Verstuurd. De agent haalt je antwoord op zodra hij verdergaat.';
+        if (fresh) fresh.textContent = 'Sent. The agent will pick up your answer as soon as it continues.';
     }
 
     function field(label, name, value, list) {
@@ -2200,7 +2393,7 @@
     }
 
     async function patch(id, body, note) {
-        if (note) note.textContent = 'Opslaan…';
+        if (note) note.textContent = 'Saving…';
         const response = await fetch(`${CFG.agentUrl}/${id}`, {
             method: 'PATCH',
             credentials: 'same-origin',
@@ -2208,14 +2401,14 @@
             body: JSON.stringify(body),
         });
         if (!response.ok) {
-            if (note) note.textContent = 'Opslaan mislukt.';
+            if (note) note.textContent = "Couldn't save.";
             return;
         }
         const data = await response.json();
         if (body.project !== undefined) await loadState();
         else onChanged({ agents: [data.agent] });
         const fresh = document.querySelector('#detail .form-msg');
-        if (fresh) fresh.textContent = 'Opgeslagen.';
+        if (fresh) fresh.textContent = 'Saved.';
     }
 
     function select(id, keep) {
@@ -2230,18 +2423,18 @@
 
     function clock(iso) {
         const d = new Date(iso);
-        return d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     }
 
     function ago(iso) {
         const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-        if (s < 60) return 'zojuist';
-        if (s < 3600) return `${Math.floor(s / 60)} min geleden`;
-        if (s < 86400) return `${Math.floor(s / 3600)} uur geleden`;
-        return `${Math.floor(s / 86400)} dagen geleden`;
+        if (s < 60) return 'just now';
+        if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+        if (s < 86400) return s < 7200 ? '1 hour ago' : `${Math.floor(s / 3600)} hours ago`;
+        return s < 172800 ? '1 day ago' : `${Math.floor(s / 86400)} days ago`;
     }
 
-    const dog = { pos: null, path: null, mode: 'lie', until: 0, face: 1, spot: null, wish: null, bark: 0, barkText: 'Woef!', layout: null, comfortId: null, comforted: {}, greetedOn: null, begged: 0 };
+    const dog = { pos: null, path: null, mode: 'lie', until: 0, face: 1, spot: null, wish: null, bark: 0, barkText: 'Woof!', layout: null, comfortId: null, comforted: {}, greetedOn: null, begged: 0 };
     const DOG_SPEED = 1.7;
 
     function dogHome() {
@@ -2271,11 +2464,11 @@
             return { a: { x: Math.min(L.W - 1.2, seat.x + 0.5), y: seat.aisle }, tail: [], mode: 'lie', stay: 16, comfort: true };
         }
         if (kind === 'greet') {
-            return { a: { x: home.entry.x + 0.6, y: home.entry.y }, tail: [], mode: 'sit', stay: 9, happy: true, say: 'Goedemorgen!' };
+            return { a: { x: home.entry.x + 0.6, y: home.entry.y }, tail: [], mode: 'sit', stay: 9, happy: true, say: 'Good morning!' };
         }
         if (kind === 'beg') {
-            const spot = loungeSpots()[0];
-            return { a: { x: spot.x + 0.45, y: spot.y + 0.3 }, tail: [], mode: 'sit', stay: 8, happy: true, say: hash2(Math.floor(t), 31) < 0.5 ? 'Koekje?' : 'Ik ben ook lief!' };
+            const t = lounge().table;
+            return { a: { x: t.x + 0.05, y: t.y + 0.7 }, tail: [], mode: 'sit', stay: 8, happy: true, say: hash2(Math.floor(t), 31) < 0.5 ? 'Treat?' : "I've been good too!" };
         }
         if (kind === 'visit') {
             const seat = L.seats.get(dog.wish);
@@ -2558,7 +2751,7 @@
         const hit = hitAgent(e, { dog: true });
         if (hit === 'dog') {
             dog.bark = now() + 1.6;
-            dog.barkText = 'Woef!';
+            dog.barkText = 'Woof!';
             return;
         }
         select(hit);
@@ -2566,6 +2759,8 @@
     if (!CFG.tv) canvas.addEventListener('mousemove', (e) => {
         const hit = hitAgent(e, { dog: true });
         canvas.style.cursor = hit ? 'pointer' : 'default';
+        const usage = !hit && boardHit(e) ? usageNow() : null;
+        canvas.title = usage ? usageSummary(usage) : '';
         const id = hit === 'dog' ? null : hit;
         state.dogHover = hit === 'dog';
         if (id !== state.hover) state.hover = id;
@@ -2641,8 +2836,8 @@
         const dateEl = document.getElementById('tv-date');
         const tick = () => {
             const d = new Date();
-            clockEl.textContent = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-            dateEl.textContent = d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+            clockEl.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            dateEl.textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
         };
         tick();
         setInterval(tick, 5000);
@@ -2698,7 +2893,7 @@
         const live = document.getElementById('live');
         const set = (s, label) => { live.dataset.state = s; live.textContent = label; };
         if (!window.Pusher || !CFG.reverb.key) {
-            set('down', 'geen live-verbinding');
+            set('down', 'no live connection');
             return;
         }
         const pusher = new window.Pusher(CFG.reverb.key, {
@@ -2713,12 +2908,13 @@
         });
         pusher.connection.bind('state_change', ({ current }) => {
             if (current === 'connected') { set('live', 'live'); loadState(); }
-            else if (current === 'connecting') set('connecting', 'verbinden…');
-            else set('down', 'verbinding verbroken');
+            else if (current === 'connecting') set('connecting', 'connecting…');
+            else set('down', 'connection lost');
         });
         const channel = pusher.subscribe('private-office');
         channel.bind('office.changed', onChanged);
         channel.bind('office.alarms', onAlarms);
+        channel.bind('office.usage', (payload) => { state.usage = payload.usage || null; });
     }
 
     loadState().then(() => {

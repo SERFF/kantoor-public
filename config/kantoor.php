@@ -2,7 +2,7 @@
 
 return [
     'brand' => env('KANTOOR_BRAND'),
-    'sign' => env('KANTOOR_SIGN', 'KANTOOR'),
+    'sign' => env('KANTOOR_SIGN', 'OFFICE'),
     'dog' => env('KANTOOR_DOG', 'Yuki'),
 
     'timeouts' => [
@@ -22,6 +22,8 @@ return [
     'keep_events_days' => (int) env('KANTOOR_KEEP_EVENTS', 30),
 
     'keep_log_days' => (int) env('KANTOOR_KEEP_LOG', 365),
+
+    'alert_ips' => array_values(array_filter(array_map('trim', explode(',', (string) env('KANTOOR_ALERT_IPS', ''))))),
 
     'alarm_minutes' => (int) env('KANTOOR_ALARM_MINUTES', 60),
 

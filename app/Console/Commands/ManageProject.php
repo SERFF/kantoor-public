@@ -9,14 +9,14 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-#[Signature('kantoor:project {name? : Projectnaam; zonder naam toont het de lijst} {--match= : Komma-gescheiden mapnamen of patronen die bij dit project horen, bijv. "webshop*,shop-api"} {--position= : Volgorde van het eiland} {--rename= : Nieuwe naam} {--merge= : Verplaats agents van dit project hierheen en verwijder het}')]
+#[Signature('kantoor:project {name? : Project name; without a name it shows the list} {--match= : Comma-separated folder names or patterns that belong to this project, e.g. "webshop*,shop-api"} {--position= : Order of the island} {--rename= : New name} {--merge= : Move the agents of this project here and delete it}')]
 #[Description('List projects, or create and configure a project (desk island)')]
 class ManageProject extends Command
 {
     public function handle(): int
     {
         if (! $this->argument('name')) {
-            $this->table(['Positie', 'Slug', 'Naam', 'Match', 'Agents'], Project::query()->withCount('agents')->orderBy('position')->get()
+            $this->table(['Position', 'Slug', 'Name', 'Match', 'Agents'], Project::query()->withCount('agents')->orderBy('position')->get()
                 ->map(fn (Project $project) => [$project->position, $project->slug, $project->name, $project->match, $project->agents_count]));
 
             return self::SUCCESS;
@@ -28,7 +28,7 @@ class ManageProject extends Command
             $other = Project::query()->where('slug', Str::slug($this->option('merge')))->first();
 
             if (! $other || $other->is($project)) {
-                $this->error('Project om samen te voegen niet gevonden.');
+                $this->error('Project to merge not found.');
 
                 return self::FAILURE;
             }
@@ -52,7 +52,7 @@ class ManageProject extends Command
 
         $project->save();
 
-        $this->info("Project {$project->name} ({$project->slug}) opgeslagen.");
+        $this->info("Project {$project->name} ({$project->slug}) saved.");
 
         return self::SUCCESS;
     }

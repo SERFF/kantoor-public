@@ -14,7 +14,7 @@ class AuthenticateHookToken
         $token = HookToken::findByPlain($request->bearerToken());
 
         if (! $token) {
-            return response()->json(['message' => 'Ongeldig hook-token.'], 401);
+            return response()->json(['message' => 'Invalid hook token.'], 401);
         }
 
         $token->touchUsed();

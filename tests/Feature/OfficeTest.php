@@ -29,26 +29,26 @@ class OfficeTest extends TestCase
         $gone = $office->agent('cc:old', ['source' => 'claude_code']);
         $office->report($gone, Status::Offline);
         $gone->forceFill(['status_changed_at' => now()->subHour()])->save();
-        $agent = $office->agent('mcp:research', ['project' => 'Intern', 'role' => 'Onderzoeker']);
-        $office->report($agent, Status::Working, 'Speurt websites af');
+        $agent = $office->agent('mcp:research', ['project' => 'Internal', 'role' => 'Researcher']);
+        $office->report($agent, Status::Working, 'Browsing websites');
 
         $this->actingAs(User::factory()->create());
 
-        $this->get('/')->assertOk()->assertSee('Het kantoor');
+        $this->get('/')->assertOk()->assertSee('The office');
 
         $this->getJson('/office/state')
             ->assertOk()
             ->assertJsonCount(1, 'agents')
-            ->assertJsonPath('agents.0.message', 'Speurt websites af')
-            ->assertJsonPath('projects.0.name', 'Intern')
-            ->assertJsonPath('events.0.text', "{$agent->name} is aan het werk: Speurt websites af");
+            ->assertJsonPath('agents.0.message', 'Browsing websites')
+            ->assertJsonPath('projects.0.name', 'Internal')
+            ->assertJsonPath('events.0.text', "{$agent->name} is working: Browsing websites");
     }
 
     public function test_agent_can_be_renamed_moved_and_released(): void
     {
         $office = app(Office::class);
         $agent = $office->agent('mcp:research');
-        $office->report($agent, Status::Error, 'Tests mislukt');
+        $office->report($agent, Status::Error, 'Tests failed');
 
         $this->actingAs(User::factory()->create());
 
@@ -68,10 +68,10 @@ class OfficeTest extends TestCase
     {
         $office = app(Office::class);
 
-        $silent = $office->report($office->agent('mcp:writer'), Status::Working, 'Bezig');
+        $silent = $office->report($office->agent('mcp:writer'), Status::Working, 'Busy');
         $silent->forceFill(['last_seen_at' => now()->subHour()])->save();
 
-        $finished = $office->report($office->agent('mcp:planner'), Status::Done, 'Klaar');
+        $finished = $office->report($office->agent('mcp:planner'), Status::Done, 'Done');
         $finished->forceFill(['status_changed_at' => now()->subHour()])->save();
 
         $session = $office->report($office->agent('cc:s1', ['source' => 'claude_code']), Status::Done);
@@ -85,7 +85,7 @@ class OfficeTest extends TestCase
         $this->artisan('kantoor:check')->assertSuccessful();
 
         $this->assertSame(Status::Error, $silent->fresh()->status);
-        $this->assertStringStartsWith('Geen teken van leven', $silent->fresh()->message);
+        $this->assertStringStartsWith('No sign of life', $silent->fresh()->message);
         $this->assertSame(Status::Idle, $finished->fresh()->status);
         $this->assertSame(Status::Offline, $session->fresh()->status);
         $this->assertNull(Agent::find($forgotten->id));
@@ -102,7 +102,7 @@ class OfficeTest extends TestCase
         $fresh = $office->report($office->agent('mcp:webshop'), Status::Idle);
         $fresh->forceFill(['status_changed_at' => now()->subMinutes(10)])->save();
 
-        $asking = $office->report($office->agent('mcp:portal'), Status::Waiting, 'Welke branch?');
+        $asking = $office->report($office->agent('mcp:portal'), Status::Waiting, 'Which branch?');
         $asking->forceFill(['last_seen_at' => now()->subMinutes(45), 'status_changed_at' => now()->subMinutes(45)])->save();
 
         $this->artisan('kantoor:check')->assertSuccessful();

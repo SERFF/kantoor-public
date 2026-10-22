@@ -11,11 +11,11 @@ use Illuminate\View\View;
 
 class LogbookController
 {
-    public const PERIODS = [7 => 'Week', 30 => 'Maand', 90 => 'Kwartaal', 365 => 'Jaar'];
+    public const PERIODS = [7 => 'Week', 30 => 'Month', 90 => 'Quarter', 365 => 'Year'];
 
     public function __invoke(Request $request, Logbook $logbook): View
     {
-        $days = (int) $request->query('dagen', 30);
+        $days = (int) $request->query('days', 30);
         $days = array_key_exists($days, self::PERIODS) ? $days : 30;
         $project = $request->filled('project') ? Project::query()->firstWhere('slug', $request->query('project')) : null;
 
@@ -37,7 +37,7 @@ class LogbookController
             'total' => $entries->count(),
             'groups' => $entries->groupBy(fn (LogEntry $entry) => $entry->created_at->setTimezone($tz)->toDateString())
                 ->map(fn ($group, $date) => [
-                    'label' => ucfirst(CarbonImmutable::parse($date, $tz)->locale('nl')->isoFormat('dddd D MMMM')),
+                    'label' => ucfirst(CarbonImmutable::parse($date, $tz)->locale('en')->isoFormat('dddd, MMMM D')),
                     'entries' => $group->map(fn (LogEntry $entry) => [
                         'time' => $entry->created_at->setTimezone($tz)->format('H:i'),
                         'agent' => $entry->agent_name,

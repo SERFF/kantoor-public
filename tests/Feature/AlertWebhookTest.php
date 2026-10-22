@@ -31,19 +31,19 @@ class AlertWebhookTest extends TestCase
     {
         return array_replace_recursive([
             'action' => 'new_issue',
-            'action_label' => 'Nieuw issue',
+            'action_label' => 'New issue',
             'project' => ['id' => 3, 'name' => 'Webshop', 'slug' => 'webshop'],
             'issue' => [
                 'id' => 42,
                 'short_id' => 'WEBSHOP-42',
-                'title' => 'SQLSTATE fout voor jan@example.com',
+                'title' => 'SQLSTATE error for jan@example.com',
                 'culprit' => 'App\\Http\\Controllers\\PlanningController',
                 'level' => 'error',
                 'status' => 'unresolved',
                 'times_seen' => 1,
                 'url' => 'https://monitor.example.com/issues/42',
             ],
-            'event' => ['message' => 'Geheime inhoud', 'user' => 'jan@example.com'],
+            'event' => ['message' => 'Secret content', 'user' => 'jan@example.com'],
         ], $overrides);
     }
 
@@ -74,10 +74,10 @@ class AlertWebhookTest extends TestCase
 
     public function test_unknown_projects_are_not_created_as_islands(): void
     {
-        $this->send($this->payload(['project' => ['name' => 'Klantsite', 'slug' => 'klantsite']]))->assertOk();
+        $this->send($this->payload(['project' => ['name' => 'Client site', 'slug' => 'client-site']]))->assertOk();
 
         $this->assertNull(Alarm::sole()->project_id);
-        $this->assertSame('Klantsite', Alarm::sole()->project_name);
+        $this->assertSame('Client site', Alarm::sole()->project_name);
         $this->assertSame(0, Project::count());
     }
 
@@ -140,7 +140,7 @@ class AlertWebhookTest extends TestCase
 
         $this->getJson('/office/state')
             ->assertJsonPath('alarms.0.short_id', 'WEBSHOP-42')
-            ->assertJsonPath('alarms.0.label', 'Nieuwe fout')
+            ->assertJsonPath('alarms.0.label', 'New error')
             ->assertJsonMissingPath('alarms.0.title');
 
         $this->travel(61)->minutes();
@@ -152,7 +152,7 @@ class AlertWebhookTest extends TestCase
     {
         $this->send($this->payload(['action' => 'test', 'issue' => ['id' => null]]))->assertOk();
 
-        $this->assertSame('Testmelding', Alarm::sole()->label());
+        $this->assertSame('Test alert', Alarm::sole()->label());
     }
 
     public function test_unsafe_links_are_dropped(): void
@@ -162,15 +162,39 @@ class AlertWebhookTest extends TestCase
         $this->assertNull(Alarm::sole()->url);
     }
 
+    public function test_the_url_without_token_only_accepts_trusted_ips(): void
+    {
+        config(['kantoor.alert_ips' => ['203.0.113.7']]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->postJson('/api/hooks/alerts', $this->payload())
+            ->assertNotFound();
+        $this->assertSame(0, Alarm::count());
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+            ->postJson('/api/hooks/alerts', $this->payload())
+            ->assertOk();
+        $this->assertSame(1, Alarm::count());
+    }
+
+    public function test_the_url_without_token_is_closed_when_no_ip_is_configured(): void
+    {
+        config(['kantoor.alert_ips' => []]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->postJson('/api/hooks/alerts', $this->payload())
+            ->assertNotFound();
+    }
+
     public function test_command_prints_a_working_webhook_url(): void
     {
-        $this->artisan('kantoor:alert-link', ['name' => 'Productie'])
+        $this->artisan('kantoor:alert-link', ['name' => 'Production'])
             ->expectsOutputToContain('/api/hooks/alerts/ka_')
             ->assertSuccessful();
 
-        $this->assertSame(1, HookToken::query()->where('kind', HookToken::ALERT)->where('name', 'Productie')->count());
+        $this->assertSame(1, HookToken::query()->where('kind', HookToken::ALERT)->where('name', 'Production')->count());
 
-        $this->artisan('kantoor:alert-link', ['name' => 'Productie', '--revoke' => true])->assertSuccessful();
-        $this->assertSame(0, HookToken::query()->where('name', 'Productie')->count());
+        $this->artisan('kantoor:alert-link', ['name' => 'Production', '--revoke' => true])->assertSuccessful();
+        $this->assertSame(0, HookToken::query()->where('name', 'Production')->count());
     }
 }

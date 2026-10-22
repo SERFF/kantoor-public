@@ -63,7 +63,7 @@ class Switchboard
         try {
             broadcast(new AlarmsChanged($ringing));
         } catch (Throwable $e) {
-            Log::warning('Kantoor-alarm-broadcast mislukt: '.$e->getMessage());
+            Log::warning('Kantoor alarm broadcast failed: '.$e->getMessage());
         }
     }
 
