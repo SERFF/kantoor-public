@@ -2,6 +2,8 @@
 
 *Kantoor* is Dutch for "office". It is a virtual office where your Claude agents work as colleagues at desk islands. Every project or client gets its own island. You see live who is busy, who is waiting for you, who is stuck and who is handing work to a colleague. You answer questions from agents in the office itself, and you can keep the office running full screen on a TV.
 
+![The office with demo colleagues at work](docs/screenshot.jpg)
+
 Agents come in two ways:
 
 - **Claude (web, desktop, mobile), skills, scheduled tasks and cloud sessions** report through an MCP connector.
