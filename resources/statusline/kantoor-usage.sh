@@ -6,11 +6,16 @@
 #   "statusLine": { "type": "command", "command": "KANTOOR_URL=https://kantoor.example.com KANTOOR_STATUSLINE='your-statusline-command' ~/.claude/hooks/kantoor-usage.sh" }
 #
 # KANTOOR_URL is required; without it nothing is sent and the input is only passed on.
-# The token comes from KANTOOR_TOKEN or is read from the Kantoor hooks in settings.json.
+# The URL and token come from ~/.claude/kantoor.env (see install.sh), from KANTOOR_URL and
+# KANTOOR_TOKEN, or, for older installs, from the Kantoor hooks in settings.json.
 
 input=$(cat)
 
+CONFIG="${KANTOOR_CONFIG:-$HOME/.claude/kantoor.env}"
+[ -f "$CONFIG" ] && . "$CONFIG"
+KANTOOR_URL="${KANTOOR_URL:-__KANTOOR_URL__}"
 KANTOOR_URL="${KANTOOR_URL%/}"
+case "$KANTOOR_URL" in __*) KANTOOR_URL="" ;; esac
 STATE="${HOME}/.claude/kantoor-usage.last"
 
 limits=$(printf '%s' "$input" | jq -c '.rate_limits // empty | {five_hour, seven_day}' 2>/dev/null)

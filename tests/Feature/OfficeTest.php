@@ -132,7 +132,7 @@ class OfficeTest extends TestCase
     public function test_hook_token_command_prints_settings(): void
     {
         $this->artisan('kantoor:hook-token', ['name' => 'MacBook'])
-            ->expectsOutputToContain('/api/hooks/claude-code')
+            ->expectsOutputToContain('/install.sh | bash -s -- kh_')
             ->assertSuccessful();
 
         $this->assertDatabaseCount('hook_tokens', 1);

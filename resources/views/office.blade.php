@@ -25,6 +25,7 @@
             <div class="stat"><strong id="count-working">0</strong><span>working</span></div>
             <button type="button" class="stat wait" id="stat-waiting" aria-label="Open the first agent waiting for you"><strong id="count-waiting">0</strong><span>waiting for you</span></button>
             <div class="stat err"><strong id="count-error">0</strong><span>stuck</span></div>
+            <button type="button" class="ghost" id="sound-toggle" aria-pressed="true">Sound on</button>
             <a class="ghost" href="{{ route('logbook') }}">Logbook</a>
             <a class="ghost tv-open" href="{{ route('tv') }}" target="_blank" rel="noopener">TV view</a>
             <form method="POST" action="{{ route('logout') }}">
@@ -71,11 +72,20 @@
             </div>
             <div class="today-body" id="today"></div>
         </section>
-        <section class="panel connect">
-            <h2>Connect</h2>
-            <p>Connector URL for Claude: <code>{{ url('/mcp') }}</code></p>
-            <p>Claude Code-hooks: <code>php artisan kantoor:hook-token "Name of your Mac"</code></p>
-        </section>
+        <div class="stack">
+            <section class="panel week">
+                <div class="panel-head">
+                    <h2 id="week-title">This week</h2>
+                    <span class="mono">since Monday</span>
+                </div>
+                <div class="week-body" id="week"></div>
+            </section>
+            <section class="panel connect">
+                <h2>Connect</h2>
+                <p>Connector URL for Claude: <code>{{ url('/mcp') }}</code></p>
+                <p>Claude Code hooks: create a token with <code>php artisan kantoor:hook-token "Name of your Mac"</code> and run the install command it prints on that Mac.</p>
+            </section>
+        </div>
     </div>
 </div>
 

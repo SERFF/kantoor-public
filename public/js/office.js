@@ -27,6 +27,7 @@
         day: 1,
         ui: 1,
         today: null,
+        week: null,
         star: null,
         visits: [],
         alarms: [],
@@ -1794,6 +1795,74 @@
         if (project) state.projects.set(project.id, project);
     }
 
+    const sound = { ctx: null, on: true, last: 0 };
+    try { sound.on = localStorage.getItem('kantoor-sound') !== 'off'; } catch (e) {}
+
+    const TUNES = {
+        waiting: [[660, 0, 0.22, 'sine'], [880, 0.18, 0.45, 'sine']],
+        done: [[523, 0, 0.14, 'triangle'], [659, 0.11, 0.14, 'triangle'], [784, 0.22, 0.14, 'triangle'], [1047, 0.33, 0.4, 'triangle']],
+        error: [[247, 0, 0.22, 'square'], [196, 0.2, 0.45, 'square']],
+    };
+
+    function audio() {
+        if (!sound.ctx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+            sound.ctx = new Ctx();
+        }
+        if (sound.ctx.state === 'suspended') sound.ctx.resume().catch(() => {});
+        return sound.ctx;
+    }
+
+    function play(kind) {
+        const tune = TUNES[kind];
+        if (!sound.on || !tune || !sound.ctx) return;
+        const ctx = audio();
+        const start = ctx.currentTime + 0.02;
+        for (const [freq, at, dur, type] of tune) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, start + at);
+            gain.gain.exponentialRampToValueAtTime(type === 'square' ? 0.04 : 0.12, start + at + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + at + dur);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(start + at);
+            osc.stop(start + at + dur + 0.05);
+        }
+    }
+
+    function chime(changed) {
+        const statuses = new Set(changed.map((a) => a.status));
+        const kind = ['waiting', 'error', 'done'].find((s) => statuses.has(s));
+        if (!kind || now() - sound.last < 2) return;
+        sound.last = now();
+        play(kind);
+    }
+
+    function setupSound() {
+        const unlock = () => { if (sound.on) audio(); };
+        document.addEventListener('pointerdown', unlock, { passive: true });
+        document.addEventListener('keydown', unlock);
+        const button = document.getElementById('sound-toggle');
+        if (!button) return;
+        const paint = () => {
+            button.textContent = sound.on ? 'Sound on' : 'Sound off';
+            button.setAttribute('aria-pressed', String(sound.on));
+        };
+        paint();
+        button.addEventListener('click', () => {
+            sound.on = !sound.on;
+            try { localStorage.setItem('kantoor-sound', sound.on ? 'on' : 'off'); } catch (e) {}
+            paint();
+            if (sound.on) {
+                audio();
+                play('done');
+            }
+        });
+    }
+
     function upsertAgent(agent, announce) {
         const before = state.agents.get(agent.id);
         state.agents.set(agent.id, agent);
@@ -1828,6 +1897,7 @@
         const data = await response.json();
         state.projects = new Map(data.projects.map((p) => [p.id, p]));
         state.today = data.today || null;
+        state.week = data.week || null;
         state.star = data.star || null;
         state.alarms = data.alarms || [];
         state.usage = data.usage || null;
@@ -1855,6 +1925,7 @@
         (payload.projects || []).forEach(upsertProject);
         if ((payload.agents || []).some((a) => a.status === 'done' && (state.agents.get(a.id) || {}).status !== 'done')) refreshSoon();
         const changed = (payload.agents || []).filter((a) => (state.agents.get(a.id) || {}).status !== a.status && a.status !== 'idle' && a.status !== 'offline');
+        chime(changed);
         const layoutKey = layoutSignature();
         (payload.agents || []).forEach((agent) => upsertAgent(agent, true));
         addEvent(payload.event);
@@ -1895,6 +1966,7 @@
         renderFeed();
         renderDetail();
         renderToday();
+        renderWeek();
         renderTvWait(agents);
         renderAlarms();
     }
@@ -1981,6 +2053,59 @@
             button.disabled = false;
             button.textContent = 'Try again';
         }
+    }
+
+    function renderWeek() {
+        const el = document.getElementById('week');
+        if (!el) return;
+        const week = state.week;
+        const busy = Boolean(week && (week.done || week.prompts || week.sessions));
+        const title = document.getElementById('week-title');
+        if (title) title.textContent = week && week.previous ? 'Last week' : 'This week';
+        const tvBox = document.getElementById('tv-week');
+        if (tvBox) {
+            tvBox.hidden = !(busy && week.previous);
+            const feed = document.querySelector('.tv-feed');
+            if (feed) feed.hidden = !tvBox.hidden;
+        }
+        if (!busy) {
+            const p = document.createElement('p');
+            p.className = 'today-empty';
+            p.textContent = 'No work yet this week.';
+            el.replaceChildren(p);
+            return;
+        }
+        const n = (v) => Number(v || 0).toLocaleString('en-GB');
+        const grid = document.createElement('div');
+        grid.className = 'week-grid';
+        for (const [value, label] of [
+            [week.done, week.done === 1 ? 'delivery' : 'deliveries'],
+            [week.sessions, week.sessions === 1 ? 'session' : 'sessions'],
+            [week.prompts, week.prompts === 1 ? 'prompt' : 'prompts'],
+            [week.edits, week.edits === 1 ? 'edit' : 'edits'],
+        ]) {
+            const tile = document.createElement('div');
+            tile.className = 'week-tile';
+            const strong = document.createElement('strong');
+            strong.textContent = n(value);
+            const span = document.createElement('span');
+            span.textContent = label;
+            tile.append(strong, span);
+            grid.append(tile);
+        }
+        const facts = document.createElement('ul');
+        facts.className = 'week-facts';
+        const fact = (text) => {
+            const li = document.createElement('li');
+            li.textContent = text;
+            facts.append(li);
+        };
+        if (week.lines_added || week.lines_removed) fact(`+${n(week.lines_added)} −${n(week.lines_removed)} lines of code`);
+        if (week.busiest) fact(`Busiest day: ${week.busiest.day}`);
+        if (week.projects && week.projects.length) fact(`Most work: ${week.projects[0].name}`);
+        if (week.star) fact(`Most deliveries: ${week.star.name} (${week.star.count})`);
+        if (week.approvals) fact(`Answered ${n(week.approvals)}× in the office`);
+        el.replaceChildren(grid, facts);
     }
 
     function renderToday() {
@@ -2296,14 +2421,22 @@
         wrap.className = 'question';
         const label = document.createElement('p');
         label.className = 'question-label';
-        label.textContent = `Question · ${clock(question.asked_at)}`;
+        const kind = { permission: 'Permission', ask: 'Question from Claude Code' }[question.kind] || 'Question';
+        label.textContent = `${kind} · ${clock(question.asked_at)}`;
         const text = document.createElement('p');
         text.className = 'question-text';
         text.textContent = question.question;
+        if (question.kind) wrap.dataset.kind = question.kind;
         const note = document.createElement('p');
         note.className = 'form-msg';
         const send = (answer) => answerQuestion(question.id, answer, wrap, note);
         wrap.append(label, text);
+        if (question.detail) {
+            const detail = document.createElement('code');
+            detail.className = 'question-detail';
+            detail.textContent = question.detail;
+            wrap.append(detail);
+        }
 
         if (question.options.length) {
             const options = document.createElement('div');
@@ -2920,6 +3053,7 @@
     loadState().then(() => {
         loop();
         connect();
+        setupSound();
         if (CFG.tv) tvMode();
         setInterval(loadState, 30000);
         setInterval(() => { renderCards(visibleAgents()); renderAlarms(); }, 60000);

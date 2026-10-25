@@ -10,6 +10,16 @@ Route::post('/hooks/claude-code', ClaudeCodeHookController::class)
     ->middleware([AuthenticateHookToken::class, 'throttle:hooks'])
     ->name('hooks.claude-code');
 
+Route::get('/hooks/claude-code/requests/{request}', [ClaudeCodeHookController::class, 'show'])
+    ->whereUuid('request')
+    ->middleware([AuthenticateHookToken::class, 'throttle:hooks'])
+    ->name('hooks.claude-code.requests.show');
+
+Route::delete('/hooks/claude-code/requests/{request}', [ClaudeCodeHookController::class, 'destroy'])
+    ->whereUuid('request')
+    ->middleware([AuthenticateHookToken::class, 'throttle:hooks'])
+    ->name('hooks.claude-code.requests.destroy');
+
 Route::post('/hooks/usage', UsageHookController::class)
     ->middleware([AuthenticateHookToken::class, 'throttle:hooks'])
     ->name('hooks.usage');

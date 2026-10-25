@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgentQuestion;
+use App\Office\HookRequests;
 use App\Office\Office;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,11 @@ class QuestionController
 
         abort_unless($question->isOpen(), 409, 'This question has already been answered or has expired.');
 
-        $office->answer($question, $data['answer']);
+        if ($question->kind) {
+            app(HookRequests::class)->answer($question, $data['answer']);
+        } else {
+            $office->answer($question, $data['answer']);
+        }
 
         return response()->json(['agent' => $question->agent->fresh()->toOffice()]);
     }

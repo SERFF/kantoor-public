@@ -19,14 +19,15 @@ Kantoor is a Laravel app you host yourself. Each installation belongs to one per
 4. [Connect Claude](#connect-claude)
 5. [Connect Claude Code](#connect-claude-code)
 6. [Weekly usage on the whiteboard (optional)](#weekly-usage-on-the-whiteboard-optional)
-7. [Reporting from a skill](#reporting-from-a-skill)
-8. [The office on a TV](#the-office-on-a-tv)
-9. [Ringing the phone on errors (optional)](#ringing-the-phone-on-errors-optional)
-10. [Projects (islands)](#projects-islands)
-11. [Settings](#settings)
-12. [Updating](#updating)
-13. [Troubleshooting](#troubleshooting)
-14. [Privacy and security](#privacy-and-security)
+7. [Weekly recap and sounds](#weekly-recap-and-sounds)
+8. [Reporting from a skill](#reporting-from-a-skill)
+9. [The office on a TV](#the-office-on-a-tv)
+10. [Ringing the phone on errors (optional)](#ringing-the-phone-on-errors-optional)
+11. [Projects (islands)](#projects-islands)
+12. [Settings](#settings)
+13. [Updating](#updating)
+14. [Troubleshooting](#troubleshooting)
+15. [Privacy and security](#privacy-and-security)
 
 ## Requirements
 
@@ -238,6 +239,7 @@ Claude then gets five tools:
 | `get_answer` | Fetches your answer to a question you answered in the office. |
 | `office_overview` | Who is doing what, for example for "who is waiting for me?". |
 | `day_summary` | End-of-day recap: what was delivered per project and what is still open. |
+| `week_summary` | Weekly recap: deliveries, sessions, prompts, lines edited, the busiest day and the totals per project. |
 
 The connector tells Claude by itself when to report. If you want Claude to report in every chat, add a line to your personal preferences (Settings → Profile), for example:
 
@@ -257,11 +259,33 @@ On the server, create one token per computer:
 php artisan kantoor:hook-token "Laptop"
 ```
 
-This prints a `hooks` block. Merge it with the existing `hooks` in `~/.claude/settings.json` on that computer (if there is nothing yet, paste the whole block). Restart Claude Code.
+This prints the token and an install command like this one. Run it on that computer:
+
+```bash
+curl -fsSL https://kantoor.example.com/install.sh | bash -s -- kh_...
+```
+
+The script checks the token, backs up `~/.claude/settings.json`, shows you the change and asks before writing it. It puts `kantoor-hook.sh` and `kantoor-usage.sh` in `~/.claude/hooks/`, stores the address and token in `~/.claude/kantoor.env` (readable only by you), replaces earlier Kantoor hooks and keeps your own status line working. It needs `jq` and `curl`. You can run it again at any time; remove everything with `... | bash -s -- --remove`.
 
 From then on every session becomes a colleague at the island of the repository you are working in: the folder directly under `Code/`, `Herd/`, `Projects/` or `Sites/` in your home folder (change this with `KANTOOR_CODE_ROOTS`). You see what the session is doing (editing a file, running the tests), when it is waiting for permission and when it is done. Subagents become separate colleagues next to the session.
 
-The hooks use `curl` with a 2-second timeout and fail silently. If the office is briefly unreachable, Claude Code doesn't notice. Revoke a token with:
+Every edit shows the file name and how many lines were added and removed ("Editing Planning.php +12 −3").
+
+**Permission requests and questions in the office.** When Claude Code asks for permission (a command, an edit) or asks you something with `AskUserQuestion`, it shows up in the office with buttons: *Allow*, *Always allow* (when Claude Code suggests a rule), *Deny* or *Answer in the terminal*. If you type something yourself, the office denies the request with your text as the explanation for Claude. Several questions come one at a time. The hook waits for your answer and passes it on; every answer only applies to that one request.
+
+By default this only goes through the office while you are away from your Mac (two minutes without mouse or keyboard). When you are at your desk, Claude Code asks you as usual. If you come back while the question is in the office, it moves back to Claude Code, and so it does after 30 minutes without an answer. Settings in `~/.claude/kantoor.env`:
+
+| Setting | What |
+|---|---|
+| `KANTOOR_APPROVE` | `away` (default), `always` or `never` |
+| `KANTOOR_AWAY_AFTER` | seconds without mouse or keyboard before you count as away (120) |
+| `KANTOOR_WAIT` | how long the hook waits for your answer, in seconds (1800) |
+| `KANTOOR_FILES=0` | do not send file names |
+| `KANTOOR_DETAILS=0` | do not send the command or path with a permission request |
+
+Away detection uses macOS idle time; on other systems you count as away all the time, so set `KANTOOR_APPROVE` to what you prefer.
+
+The hooks fail silently and wait only briefly. If the office is unreachable, Claude Code doesn't notice. Revoke a token with:
 
 ```bash
 php artisan kantoor:hook-token "Laptop" --revoke
@@ -270,6 +294,8 @@ php artisan kantoor:hook-token "Laptop" --revoke
 ## Weekly usage on the whiteboard (optional)
 
 The whiteboard in the office can show how much of your weekly Claude Code usage limit is used and how much is left. Claude Code passes these numbers to its status line, so a small wrapper script forwards them to the office.
+
+The install script from [Connect Claude Code](#connect-claude-code) already does this. To do it by hand:
 
 1. Install `jq` if you don't have it (`brew install jq` or `sudo apt install jq`).
 2. Copy the script from this repository and make it executable:
@@ -296,6 +322,12 @@ The whiteboard in the office can show how much of your weekly Claude Code usage 
    ```
 
 The script uses the hook token from your `settings.json` (or `KANTOOR_TOKEN` if you set it), only sends when the numbers change or every 10 minutes, and never blocks the status line.
+
+## Weekly recap and sounds
+
+Under "This week" the office shows what happened since Monday: deliveries, Claude Code sessions, prompts, edits with the number of lines, the busiest day, the project with the most work and how often you answered in the office. On Monday morning until noon it shows last week instead, also on the TV. `week_summary` gives Claude the same recap.
+
+The office plays a short sound when someone is waiting for you, gets stuck or is done. Turn it off with the *Sound* button at the top. Browsers only play sound after a first click or key press; on the TV that is the click for full screen.
 
 ## Reporting from a skill
 
@@ -423,7 +455,7 @@ With Forge, the deploy script does this for you.
 
 ## Privacy and security
 
-- Prompts and file contents from Claude Code are never stored. Of tool use, Kantoor only keeps the kind of action and the file name.
+- The hook script strips everything it doesn't need before sending: no prompts, no file contents, no replies from Claude. Of tool use, only the kind of action, the file name and the number of lines are sent. Only for a permission request that goes through the office, the command or path is sent too, so you know what you are approving; it is deleted as soon as you answer.
 - Hook tokens, TV links and alert links are stored only as hashes and can be revoked one by one.
 - Everyone with an account sees everything in the installation. Only give accounts to people who may see everything.
 - Reports appear on a screen others may see. The connector asks Claude not to put personal data, email addresses or customer content in reports, but check your own skills for this too.

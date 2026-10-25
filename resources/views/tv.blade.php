@@ -55,6 +55,13 @@
                 </div>
                 <div class="cards" id="cards"></div>
             </section>
+            <section class="panel tv-week" id="tv-week" hidden>
+                <div class="panel-head">
+                    <h2 id="week-title">Last week</h2>
+                    <span class="mono">weekly recap</span>
+                </div>
+                <div class="week-body" id="week"></div>
+            </section>
             <section class="panel tv-feed">
                 <div class="panel-head">
                     <h2>Collaboration</h2>

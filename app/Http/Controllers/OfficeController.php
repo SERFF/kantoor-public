@@ -10,6 +10,7 @@ use App\Models\UsageLimit;
 use App\Office\Logbook;
 use App\Office\Office;
 use App\Office\Status;
+use App\Office\WeekRecap;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -74,6 +75,7 @@ class OfficeController
             'agents' => $agents->map->toOffice(),
             'events' => $events->map->toOffice(),
             'today' => $logbook->today(),
+            'week' => app(WeekRecap::class)->current(),
             'star' => $logbook->star(),
             'alarms' => Alarm::query()->with('project')->ringing()->latest('rang_at')->limit(10)->get()->map->toOffice(),
             'usage' => UsageLimit::current()?->toOffice(),

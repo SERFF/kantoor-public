@@ -90,3 +90,6 @@ body.tv.pointer { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
     .tv .stage canvas { transition: none; }
 }
+.tv-week .week-tile strong { font-size: 3.2vh; }
+.tv-week .week-tile span, .tv-week .week-facts { font-size: 1.6vh; }
+

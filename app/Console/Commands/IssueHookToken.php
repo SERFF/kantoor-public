@@ -8,11 +8,9 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('kantoor:hook-token {name : Name of the machine, e.g. "MacBook Pro"} {--revoke : Revoke all tokens with this name}')]
-#[Description('Create a token for the Claude Code hooks on one machine and print the settings.json snippet')]
+#[Description('Create a token for the Claude Code hooks on one machine and print the install command')]
 class IssueHookToken extends Command
 {
-    public const EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStart', 'SubagentStop', 'SessionEnd', 'PreCompact'];
-
     public function handle(): int
     {
         $name = (string) $this->argument('name');
@@ -26,35 +24,19 @@ class IssueHookToken extends Command
 
         $token = HookToken::issue($name);
 
-        $this->info("Token for \"{$name}\" (shown only once):");
+        $this->info('Token for "'.$name.'" (shown only once):');
         $this->line($token);
         $this->newLine();
-        $this->info('Add this to ~/.claude/settings.json on that machine (merge it with any existing "hooks"):');
-        $this->line(json_encode(['hooks' => self::hooks($token)], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->info('Install the hooks on that machine with:');
+        $this->line(self::installCommand($token));
+        $this->newLine();
+        $this->line('The script backs up ~/.claude/settings.json first and shows you the change.');
 
         return self::SUCCESS;
     }
 
-    public static function hooks(string $token): array
+    public static function installCommand(string $token): string
     {
-        $command = sprintf(
-            "curl -s -m 2 -o /dev/null -X POST -H 'Authorization: Bearer %s' -H 'Content-Type: application/json' --data-binary @- %s || true",
-            $token,
-            rtrim(config('app.url'), '/').'/api/hooks/claude-code',
-        );
-
-        $hooks = [];
-
-        foreach (self::EVENTS as $event) {
-            $entry = ['hooks' => [['type' => 'command', 'command' => $command, 'timeout' => 5]]];
-
-            if (in_array($event, ['PreToolUse', 'PostToolUse'], true)) {
-                $entry = ['matcher' => '*', ...$entry];
-            }
-
-            $hooks[$event] = [$entry];
-        }
-
-        return $hooks;
+        return sprintf('curl -fsSL %s | bash -s -- %s', route('hooks.install'), $token);
     }
 }

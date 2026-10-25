@@ -110,7 +110,7 @@ class Office
         return $agent;
     }
 
-    public function ask(Agent $agent, string $question, array $options = [], ?string $message = null): AgentQuestion
+    public function ask(Agent $agent, string $question, array $options = [], ?string $message = null, array $attributes = []): AgentQuestion
     {
         $this->cancelQuestions($agent);
         $agent->questions()->uncollected()->update(['cancelled_at' => now()]);
@@ -126,6 +126,7 @@ class Office
         $asked = $agent->questions()->create([
             'question' => $this->clean($question, 300),
             'options' => $options ?: null,
+            ...$attributes,
         ]);
 
         $agent->unsetRelation('openQuestion');

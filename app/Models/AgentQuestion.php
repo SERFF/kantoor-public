@@ -14,6 +14,7 @@ class AgentQuestion extends Model
     {
         return [
             'options' => 'array',
+            'payload' => 'array',
             'answered_at' => 'datetime',
             'collected_at' => 'datetime',
             'cancelled_at' => 'datetime',
@@ -44,8 +45,10 @@ class AgentQuestion extends Model
     {
         return [
             'id' => $this->id,
+            'kind' => $this->kind,
             'question' => $this->question,
             'options' => $this->options ?: [],
+            'detail' => $this->payload['detail'] ?? null,
             'asked_at' => $this->created_at?->toIso8601String(),
         ];
     }

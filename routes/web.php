@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlarmController;
+use App\Http\Controllers\HookScriptController;
 use App\Http\Controllers\LogbookController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\OfficeController;
@@ -19,6 +20,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/office/alarms/answer', [AlarmController::class, 'answer'])->name('office.alarms.answer-all');
     Route::post('/office/alarms/{alarm}/answer', [AlarmController::class, 'answer'])->name('office.alarms.answer');
 });
+
+Route::get('/install.sh', HookScriptController::class)->defaults('script', 'install.sh')->middleware('throttle:60,1')->name('hooks.install');
+Route::get('/hooks/{script}', HookScriptController::class)
+    ->whereIn('script', ['kantoor-hook.sh', 'kantoor-usage.sh'])
+    ->middleware('throttle:60,1')
+    ->name('hooks.script');
 
 Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login');
