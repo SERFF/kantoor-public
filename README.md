@@ -323,6 +323,21 @@ The install script from [Connect Claude Code](#connect-claude-code) already does
 
 The script uses the hook token from your `settings.json` (or `KANTOOR_TOKEN` if you set it), only sends when the numbers change or every 10 minutes, and never blocks the status line.
 
+### From the Claude desktop app (macOS)
+
+The status line only runs in the terminal. If you mostly use the Claude desktop app, the app itself keeps the same numbers in `~/Library/Application Support/Claude/plan-usage-history.json`. On a Mac with the desktop app, the install script also installs a small launchd agent (`kantoor-desktop-usage.sh`) that sends every new measurement to the office, together with the history of the last four weeks. The app only writes a measurement now and then (mostly while you use it), so the board shows when the numbers were measured. By hand:
+
+```bash
+cp resources/statusline/kantoor-desktop-usage.sh ~/.claude/hooks/
+bash ~/.claude/hooks/kantoor-desktop-usage.sh --install
+```
+
+Remove it with `--remove`. When both the status line and the desktop app report, the newest measurement wins. A reset time from the status line beats the one estimated from the desktop app (the board marks an estimated reset with ±).
+
+### Forecast
+
+The triangle on the gauge shows where the tank ends up at the reset if you keep the same pace. The office learns your pace per part of the day (night, work hours, evening, weekend) from the measurements of the last four weeks and adds the pace of the last few hours. If the tank runs empty before the reset, the triangle turns red and the bottom of the board says when. Parts of the day follow `KANTOOR_TIMEZONE`.
+
 ## Weekly recap and sounds
 
 Under "This week" the office shows what happened since Monday: deliveries, Claude Code sessions, prompts, edits with the number of lines, the busiest day, the project with the most work and how often you answered in the office. On Monday morning until noon it shows last week instead, also on the TV. `week_summary` gives Claude the same recap.

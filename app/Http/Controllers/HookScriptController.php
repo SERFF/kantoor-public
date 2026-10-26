@@ -10,6 +10,7 @@ class HookScriptController
         'install.sh' => 'hooks/install.sh',
         'kantoor-hook.sh' => 'hooks/kantoor-hook.sh',
         'kantoor-usage.sh' => 'statusline/kantoor-usage.sh',
+        'kantoor-desktop-usage.sh' => 'statusline/kantoor-desktop-usage.sh',
     ];
 
     public function __invoke(string $script): Response

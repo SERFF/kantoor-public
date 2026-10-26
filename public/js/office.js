@@ -910,8 +910,10 @@
         const used = fresh ? 0 : Math.max(0, Math.min(100, u.week.used));
         const week = 7 * 24 * 3600 * 1000;
         const pace = resets !== null && !fresh ? Math.max(0, Math.min(100, (1 - (resets - t) / week) * 100)) : null;
-        const age = u.reported_at ? (t - Date.parse(u.reported_at)) / 60000 : null;
-        return { used, left: 100 - used, pace, resets: fresh ? null : resets, fresh, age, stale: age !== null && age > 180, five: u.five_hour ? u.five_hour.used : null };
+        const measured = u.measured_at || u.reported_at ? Date.parse(u.measured_at || u.reported_at) : null;
+        const age = measured !== null ? (t - measured) / 60000 : null;
+        const stale = measured !== null && (resets !== null ? measured < resets - week || age > 7 * 1440 : age > 1440);
+        return { used, left: 100 - used, pace, resets: fresh ? null : resets, fresh, age, measured, estimated: !!u.week.estimated, projected: !fresh && u.week.projected != null ? u.week.projected : null, emptyAt: !fresh && u.week.empty_at ? Date.parse(u.week.empty_at) : null, stale, five: u.five_hour ? u.five_hour.used : null };
     }
 
     function usageTone(used) {
@@ -933,13 +935,23 @@
         return `${Math.round(min / 1440)} days ago`;
     }
 
+    function usageMeasured(u) {
+        if (u.measured === null) return '';
+        if (u.age < 2) return 'just now';
+        const d = new Date(u.measured);
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return d.toDateString() === new Date().toDateString() ? `at ${time}` : usageReset(u.measured);
+    }
+
     function usageSummary(u) {
         const parts = [`Weekly tokens: ${u.used}% used, ${u.left}% left`];
         if (u.fresh) parts.push('new week started');
-        else if (u.resets) parts.push(`resets ${usageReset(u.resets)}`);
-        if (u.pace !== null) parts.push(u.used > u.pace + 3 ? `ahead of pace (${Math.round(u.pace)}% of the week has passed)` : `on track (${Math.round(u.pace)}% of the week has passed)`);
+        else if (u.resets) parts.push(`resets ${u.estimated ? 'around ' : ''}${usageReset(u.resets)}`);
+        if (u.emptyAt) parts.push(`at this pace empty around ${usageReset(u.emptyAt)}`);
+        else if (u.projected !== null) parts.push(`at this pace ${u.projected}% used at the reset`);
+        else if (u.pace !== null) parts.push(u.used > u.pace + 3 ? `ahead of pace (${Math.round(u.pace)}% of the week has passed)` : `on track (${Math.round(u.pace)}% of the week has passed)`);
         if (u.five !== null) parts.push(`5-hour window: ${u.five}%`);
-        parts.push(`updated ${usageAge(u.age)}`);
+        parts.push(`measured ${usageMeasured(u)}`);
         return parts.join(' · ');
     }
 
@@ -995,12 +1007,13 @@
         ctx.fillStyle = '#2F7D32';
         ctx.fillText('F', cx + r - thick / 2, cy + 4.2);
 
-        if (u.pace !== null && !u.stale) {
-            const pa = Math.PI + ((100 - u.pace) / 100) * Math.PI;
+        const mark = u.projected !== null ? u.projected : u.pace;
+        if (mark !== null && !u.stale) {
+            const pa = Math.PI + ((100 - mark) / 100) * Math.PI;
             ctx.save();
             ctx.translate(cx + Math.cos(pa) * (r + 1.8), cy + Math.sin(pa) * (r + 1.8));
             ctx.rotate(pa + Math.PI / 2);
-            ctx.fillStyle = ink;
+            ctx.fillStyle = u.emptyAt ? '#C8372D' : ink;
             ctx.beginPath();
             ctx.moveTo(0, 1.6);
             ctx.lineTo(-1.4, -0.8);
@@ -1048,8 +1061,8 @@
         ctx.fillStyle = u.stale ? ink : u.left <= 10 ? '#C8372D' : u.left <= 25 ? '#D97A1E' : '#2F7D32';
         ctx.fillText(`${u.left}% left`, tx, BH * 0.79);
         ctx.font = `500 3.4px ${FONT}`;
-        ctx.fillStyle = '#6B7180';
-        const foot = u.stale ? `updated ${usageAge(u.age)}` : u.fresh ? 'new week' : (u.resets ? `resets ${usageReset(u.resets)}` : '');
+        ctx.fillStyle = u.emptyAt && !u.stale ? '#C8372D' : '#6B7180';
+        const foot = u.emptyAt && !u.stale ? `empty around ${usageReset(u.emptyAt)}` : u.stale ? `updated ${usageAge(u.age)}` : u.fresh ? 'new week' : (u.resets ? `resets ${u.estimated ? '± ' : ''}${usageReset(u.resets)}` : '');
         ctx.fillText(foot, tx, BH - 1.8);
 
         ctx.restore();

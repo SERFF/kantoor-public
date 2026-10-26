@@ -23,7 +23,7 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/install.sh', HookScriptController::class)->defaults('script', 'install.sh')->middleware('throttle:60,1')->name('hooks.install');
 Route::get('/hooks/{script}', HookScriptController::class)
-    ->whereIn('script', ['kantoor-hook.sh', 'kantoor-usage.sh'])
+    ->whereIn('script', ['kantoor-hook.sh', 'kantoor-usage.sh', 'kantoor-desktop-usage.sh'])
     ->middleware('throttle:60,1')
     ->name('hooks.script');
 

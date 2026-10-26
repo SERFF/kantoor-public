@@ -17,6 +17,10 @@ SETTINGS="$CLAUDE_DIR/settings.json"
 ENV_FILE="$CLAUDE_DIR/kantoor.env"
 HOOK="$HOOKS/kantoor-hook.sh"
 USAGE="$HOOKS/kantoor-usage.sh"
+DESKTOP="$HOOKS/kantoor-desktop-usage.sh"
+DESKTOP_DATA="$HOME/Library/Application Support/Claude"
+WITH_DESKTOP=""
+if [ "$(uname)" = Darwin ] && [ -d "$DESKTOP_DATA" ]; then WITH_DESKTOP=1; fi
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
@@ -95,6 +99,12 @@ if diff -u "$SETTINGS" <(printf '%s\n' "$new") | sed -E 's/kh_[A-Za-z0-9]+/kh_â€
 fi
 say ""
 
+if [ "$MODE" = install ] && [ -n "$WITH_DESKTOP" ]; then
+    say "This Mac has the Claude desktop app: a small launchd agent also sends the usage"
+    say "the app keeps track of to the office ($HOME/Library/LaunchAgents/com.kantoor.desktop-usage.plist)."
+    say ""
+fi
+
 if ! ask "Apply?"; then
     say "Nothing changed."
     exit 0
@@ -106,6 +116,7 @@ cp "$SETTINGS" "$backup"
 if [ "$MODE" = remove ]; then
     printf '%s\n' "$new" > "$SETTINGS"
     rm -f "$HOOK"
+    if [ -f "$DESKTOP" ]; then bash "$DESKTOP" --remove || true; rm -f "$DESKTOP"; fi
     say "The Kantoor hooks have been removed. Backup: $backup"
     say "Your status line and $ENV_FILE were left in place; remove them yourself if you like."
     exit 0
@@ -118,6 +129,11 @@ curl -fsSL -m 20 "$URL/hooks/kantoor-usage.sh" -o "$tmp/kantoor-usage.sh" || fai
 bash -n "$tmp/kantoor-hook.sh" && bash -n "$tmp/kantoor-usage.sh" || fail "the downloaded scripts are not valid."
 install -m 755 "$tmp/kantoor-hook.sh" "$HOOK"
 install -m 755 "$tmp/kantoor-usage.sh" "$USAGE"
+if [ -n "$WITH_DESKTOP" ]; then
+    curl -fsSL -m 20 "$URL/hooks/kantoor-desktop-usage.sh" -o "$tmp/kantoor-desktop-usage.sh" || fail "could not download kantoor-desktop-usage.sh."
+    bash -n "$tmp/kantoor-desktop-usage.sh" || fail "kantoor-desktop-usage.sh is not valid."
+    install -m 755 "$tmp/kantoor-desktop-usage.sh" "$DESKTOP"
+fi
 
 umask 077
 {
@@ -128,6 +144,10 @@ umask 077
 install -m 600 "$tmp/kantoor.env" "$ENV_FILE"
 
 printf '%s\n' "$new" > "$SETTINGS"
+
+if [ -n "$WITH_DESKTOP" ]; then
+    bash "$DESKTOP" --install || say "Note: the launchd agent for the desktop app could not be started."
+fi
 
 say "Done. New Claude Code sessions now show up in the office."
 say "Backup of your old settings: $backup"
