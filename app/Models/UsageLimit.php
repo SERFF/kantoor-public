@@ -24,9 +24,11 @@ class UsageLimit extends Model
             'five_hour_used' => 'float',
             'five_hour_resets_at' => 'datetime',
             'five_hour_resets_estimated' => 'boolean',
+            'five_hour_measured_at' => 'datetime',
             'seven_day_used' => 'float',
             'seven_day_resets_at' => 'datetime',
             'seven_day_resets_estimated' => 'boolean',
+            'seven_day_measured_at' => 'datetime',
             'measured_at' => 'datetime',
             'reported_at' => 'datetime',
         ];
@@ -44,34 +46,44 @@ class UsageLimit extends Model
     {
         $limit = static::query()->firstOrNew(['key' => self::CLAUDE]);
         $before = $limit->exists ? $limit->toOffice() : null;
-        $measuredAt = self::measuredAt($measuredAt);
-
-        UsageSample::remember(
-            $measuredAt,
-            isset($limits['five_hour']['used_percentage']) ? (float) $limits['five_hour']['used_percentage'] : null,
-            isset($limits['seven_day']['used_percentage']) ? (float) $limits['seven_day']['used_percentage'] : null,
-        );
-
-        if ($limit->measured_at && $measuredAt->lt($limit->measured_at)) {
-            return [$limit, false];
-        }
+        $updated = false;
+        $previous = $limit->measured_at;
 
         foreach (self::WINDOWS as $window => $length) {
             if (! isset($limits[$window]['used_percentage'])) {
                 continue;
             }
 
-            $limit->{"{$window}_used"} = round(min(100, max(0, (float) $limits[$window]['used_percentage'])), 2);
+            $used = (float) $limits[$window]['used_percentage'];
+            $windowMeasuredAt = self::measuredAt($limits[$window]['measured_at'] ?? $measuredAt);
+            UsageSample::remember($windowMeasuredAt, $window === 'five_hour' ? $used : null, $window === 'seven_day' ? $used : null);
+
+            $last = $limit->{"{$window}_measured_at"} ?? ($limit->{"{$window}_used"} !== null ? $previous : null);
+            if ($last && $windowMeasuredAt->lt($last)) {
+                continue;
+            }
+
+            $limit->{"{$window}_used"} = round(min(100, max(0, $used)), 2);
+            $limit->{"{$window}_measured_at"} = $windowMeasuredAt;
             $limit->applyReset(
                 $window,
                 $length,
                 self::moment($limits[$window]['resets_at'] ?? null),
                 (bool) ($limits[$window]['resets_estimated'] ?? false),
-                $measuredAt,
+                $windowMeasuredAt,
             );
+
+            if (! $limit->measured_at || $windowMeasuredAt->gt($limit->measured_at)) {
+                $limit->measured_at = $windowMeasuredAt;
+            }
+
+            $updated = true;
         }
 
-        $limit->measured_at = $measuredAt;
+        if (! $updated) {
+            return [$limit, false];
+        }
+
         $limit->source = $source ?? $limit->source;
         $limit->reported_at = now();
         $limit->save();
@@ -150,7 +162,7 @@ class UsageLimit extends Model
         return is_numeric($value) ? Carbon::createFromTimestamp((int) $value) : Carbon::parse((string) $value);
     }
 
-    protected function window(?float $used, ?CarbonInterface $resetsAt, ?bool $estimated): ?array
+    protected function window(?float $used, ?CarbonInterface $resetsAt, ?bool $estimated, ?CarbonInterface $measuredAt): ?array
     {
         if ($used === null) {
             return null;
@@ -160,6 +172,7 @@ class UsageLimit extends Model
             'used' => (int) round($used),
             'resets_at' => $resetsAt?->toIso8601String(),
             'estimated' => $resetsAt ? (bool) $estimated : false,
+            'measured_at' => $measuredAt?->toIso8601String(),
         ];
     }
 
@@ -178,7 +191,7 @@ class UsageLimit extends Model
 
     public function toOffice(): array
     {
-        $week = $this->window($this->seven_day_used, $this->seven_day_resets_at, $this->seven_day_resets_estimated);
+        $week = $this->window($this->seven_day_used, $this->seven_day_resets_at, $this->seven_day_resets_estimated, $this->seven_day_measured_at ?? $this->measured_at);
 
         if ($week) {
             $week += UsageProjection::make()->week($this->seven_day_used, $this->seven_day_resets_at)
@@ -187,8 +200,8 @@ class UsageLimit extends Model
 
         return [
             'week' => $week,
-            'five_hour' => $this->window($this->five_hour_used, $this->five_hour_resets_at, $this->five_hour_resets_estimated),
-            'measured_at' => $this->measured_at?->toIso8601String(),
+            'five_hour' => $this->window($this->five_hour_used, $this->five_hour_resets_at, $this->five_hour_resets_estimated, $this->five_hour_measured_at ?? $this->measured_at),
+            'measured_at' => ($this->seven_day_measured_at ?? $this->measured_at)?->toIso8601String(),
             'source' => $this->source,
             'reported_at' => $this->reported_at?->toIso8601String(),
         ];

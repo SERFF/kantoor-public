@@ -32,11 +32,17 @@ class UsageSample extends Model
             return;
         }
 
-        static::query()->insertOrIgnore([
-            'measured_at' => $measuredAt->copy()->utc()->toDateTimeString(),
+        $values = array_filter([
             'five_hour_used' => $fiveHour === null ? null : round(min(100, max(0, $fiveHour)), 2),
             'seven_day_used' => $sevenDay === null ? null : round(min(100, max(0, $sevenDay)), 2),
-        ]);
+        ], fn ($value) => $value !== null);
+
+        $at = $measuredAt->copy()->utc()->toDateTimeString();
+        $updated = static::query()->where('measured_at', $at)->update($values);
+
+        if (! $updated) {
+            static::query()->insertOrIgnore(['measured_at' => $at] + $values);
+        }
     }
 
     public static function prune(): void

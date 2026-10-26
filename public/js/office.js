@@ -913,7 +913,7 @@
         const measured = u.measured_at || u.reported_at ? Date.parse(u.measured_at || u.reported_at) : null;
         const age = measured !== null ? (t - measured) / 60000 : null;
         const stale = measured !== null && (resets !== null ? measured < resets - week || age > 7 * 1440 : age > 1440);
-        return { used, left: 100 - used, pace, resets: fresh ? null : resets, fresh, age, measured, estimated: !!u.week.estimated, projected: !fresh && u.week.projected != null ? u.week.projected : null, emptyAt: !fresh && u.week.empty_at ? Date.parse(u.week.empty_at) : null, stale, five: u.five_hour ? u.five_hour.used : null };
+        return { used, left: 100 - used, pace, resets: fresh ? null : resets, fresh, age, measured, estimated: !!u.week.estimated, projected: !fresh && u.week.projected != null ? u.week.projected : null, emptyAt: !fresh && u.week.empty_at ? Date.parse(u.week.empty_at) : null, stale, five: u.five_hour && (!u.five_hour.measured_at || t - Date.parse(u.five_hour.measured_at) < 5 * 3600 * 1000) ? u.five_hour.used : null };
     }
 
     function usageTone(used) {
@@ -983,6 +983,14 @@
         ctx.textAlign = 'left';
         ctx.fillText('WEEK TANK', 3, 6);
         ctx.letterSpacing = '0px';
+
+        if (u.five !== null) {
+            ctx.font = `600 3.4px ${FONT}`;
+            ctx.textAlign = 'right';
+            ctx.fillStyle = u.stale ? ink : usageTone(u.five);
+            ctx.fillText(`5H ${u.five}%`, split - 1, 6);
+            ctx.textAlign = 'left';
+        }
 
         const seg = 12;
         const thick = Math.max(3, r * 0.28);

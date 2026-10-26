@@ -332,6 +332,8 @@ cp resources/statusline/kantoor-desktop-usage.sh ~/.claude/hooks/
 bash ~/.claude/hooks/kantoor-desktop-usage.sh --install
 ```
 
+If you also run the [Claude Usage](https://github.com/hamed-elfayome/Claude-Usage-Tracker) app, the agent also reads the history that app keeps: the 5-hour window every 10 minutes and the week every 2 hours. For each window the newest measurement from either source goes to the office, and the whiteboard then shows the 5-hour window next to its title.
+
 Remove it with `--remove`. When both the status line and the desktop app report, the newest measurement wins. A reset time from the status line beats the one estimated from the desktop app (the board marks an estimated reset with ±).
 
 ### Forecast
