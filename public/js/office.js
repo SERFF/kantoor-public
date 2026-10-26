@@ -984,14 +984,6 @@
         ctx.fillText('WEEK TANK', 3, 6);
         ctx.letterSpacing = '0px';
 
-        if (u.five !== null) {
-            ctx.font = `600 3.4px ${FONT}`;
-            ctx.textAlign = 'right';
-            ctx.fillStyle = u.stale ? ink : usageTone(u.five);
-            ctx.fillText(`5H ${u.five}%`, split - 1, 6);
-            ctx.textAlign = 'left';
-        }
-
         const seg = 12;
         const thick = Math.max(3, r * 0.28);
         for (let i = 0; i < seg; i++) {
@@ -1071,7 +1063,8 @@
         ctx.font = `500 3.4px ${FONT}`;
         ctx.fillStyle = u.emptyAt && !u.stale ? '#C8372D' : '#6B7180';
         const foot = u.emptyAt && !u.stale ? `empty around ${usageReset(u.emptyAt)}` : u.stale ? `updated ${usageAge(u.age)}` : u.fresh ? 'new week' : (u.resets ? `resets ${u.estimated ? '± ' : ''}${usageReset(u.resets)}` : '');
-        ctx.fillText(foot, tx, BH - 1.8);
+        const five = u.five !== null && !u.stale ? `5H ${u.five}%` : '';
+        ctx.fillText(five && (!foot || Math.floor(t / 4) % 2 === 1) ? five : foot, tx, BH - 1.8);
 
         ctx.restore();
     }
