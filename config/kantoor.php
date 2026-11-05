@@ -31,7 +31,9 @@ return [
 
     'timezone' => env('KANTOOR_TIMEZONE', 'Europe/Amsterdam'),
 
-    'keep_questions_days' => (int) env('KANTOOR_KEEP_QUESTIONS', 7),
+    'keep_questions_days' => (int) env('KANTOOR_KEEP_QUESTIONS', 30),
+
+    'expire_questions_hours' => (int) env('KANTOOR_EXPIRE_QUESTIONS', 12),
 
     'websocket' => [
         'host' => env('KANTOOR_WS_HOST'),

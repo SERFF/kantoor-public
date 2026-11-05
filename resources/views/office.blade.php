@@ -51,7 +51,10 @@
         <section class="roster" id="roster">
             <div class="panel-head">
                 <h2 id="list-title">All agents</h2>
-                <span class="mono" id="list-count"></span>
+                <span class="list-tools">
+                    <button type="button" class="link-btn" id="list-history" hidden>History</button>
+                    <span class="mono" id="list-count"></span>
+                </span>
             </div>
             <div class="cards" id="cards"></div>
         </section>
@@ -88,6 +91,12 @@
         </div>
     </div>
 </div>
+
+<div class="drawer-backdrop" id="history-backdrop" hidden></div>
+<aside class="drawer" id="history" role="dialog" aria-modal="true" aria-labelledby="history-title" hidden></aside>
+
+<div class="drawer-backdrop" id="history-backdrop" hidden></div>
+<aside class="drawer" id="history" role="dialog" aria-modal="true" aria-labelledby="history-title" hidden></aside>
 
 <script>
     window.KANTOOR = @json($config);

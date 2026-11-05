@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlarmController;
+use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\HookScriptController;
 use App\Http\Controllers\LogbookController;
 use App\Http\Controllers\LoginController;
@@ -16,6 +17,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/logbook', LogbookController::class)->name('logbook');
     Route::get('/office/state', [OfficeController::class, 'state'])->name('office.state');
     Route::patch('/office/agents/{agent}', [OfficeController::class, 'update'])->name('office.agents.update');
+    Route::get('/office/history/agents/{agent}', [HistoryController::class, 'agent'])->name('office.history.agent');
+    Route::get('/office/history/projects/{project}', [HistoryController::class, 'project'])->where('project', 'none|[0-9]+')->name('office.history.project');
     Route::post('/office/questions/{question}/answer', [QuestionController::class, 'answer'])->name('office.questions.answer');
     Route::post('/office/alarms/answer', [AlarmController::class, 'answer'])->name('office.alarms.answer-all');
     Route::post('/office/alarms/{alarm}/answer', [AlarmController::class, 'answer'])->name('office.alarms.answer');

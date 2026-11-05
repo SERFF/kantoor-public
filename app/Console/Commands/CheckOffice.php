@@ -14,14 +14,20 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('kantoor:check')]
-#[Description('Mark silent agents as stuck, let finished agents rest, send available agents and ended sessions home and prune old events, questions and log entries')]
+#[Description('Mark silent agents as stuck, expire unanswered questions, let finished agents rest, send available agents and ended sessions home and prune old events, questions and log entries')]
 class CheckOffice extends Command
 {
     public function handle(Office $office): int
     {
         Agent::query()->where('status', Status::Working->value)->get()
             ->filter(fn (Agent $agent) => $agent->last_seen_at?->lt(now()->subMinutes($agent->timeout())))
-            ->each(fn (Agent $agent) => $office->report($agent, Status::Error, 'No sign of life since '.$agent->last_seen_at->format('H:i')));
+            ->each(function (Agent $agent) use ($office) {
+                $since = $agent->last_seen_at->copy()->setTimezone(config('kantoor.timezone'))->format('H:i');
+
+                $agent->kind === 'chat'
+                    ? $office->report($agent, Status::Idle, "Chat idle since {$since}")
+                    : $office->report($agent, Status::Error, "No sign of life since {$since}");
+            });
 
         Agent::query()->where('status', Status::Done->value)
             ->where('status_changed_at', '<', now()->subMinutes(config('kantoor.done_to_idle_minutes')))
@@ -46,6 +52,12 @@ class CheckOffice extends Command
             ->where('status', Status::Offline->value)
             ->where('status_changed_at', '<', now()->subDays(config('kantoor.forget_offline_after_days')))
             ->delete();
+
+        AgentQuestion::query()->open()->whereNull('kind')
+            ->where('created_at', '<', now()->subHours(config('kantoor.expire_questions_hours')))
+            ->with('agent')
+            ->get()
+            ->each(fn (AgentQuestion $question) => $office->expire($question));
 
         AgentEvent::query()->where('created_at', '<', now()->subDays(config('kantoor.keep_events_days')))->delete();
 

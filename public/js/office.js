@@ -33,6 +33,7 @@
         alarms: [],
         usage: null,
         gauge: null,
+        history: null,
     };
 
     const now = () => performance.now() / 1000;
@@ -1943,6 +1944,7 @@
         const layoutKey = layoutSignature();
         (payload.agents || []).forEach((agent) => upsertAgent(agent, true));
         addEvent(payload.event);
+        if (payload.event) refreshHistorySoon();
         if (layoutSignature() !== layoutKey) applyLayout();
         else for (const agent of payload.agents || []) {
             const rt = state.runtime.get(agent.id);
@@ -2155,8 +2157,21 @@
                 const li = document.createElement('li');
                 const time = document.createElement('time');
                 time.textContent = item.time;
-                li.append(time, `${item.agent}: ${item.message || 'done'}`);
-                li.title = `${item.agent}: ${item.message || 'done'}`;
+                const label = `${item.agent}: ${item.message || 'done'}`;
+                li.title = label;
+                if (item.agent_id && !CFG.tv) {
+                    const jump = document.createElement('button');
+                    jump.type = 'button';
+                    jump.className = 'today-jump';
+                    jump.append(time, label);
+                    jump.addEventListener('click', () => {
+                        const agent = state.agents.get(item.agent_id);
+                        openHistory(agent ? { kind: 'agents', id: agent.id, title: agent.name, avatar: agent.avatar } : { kind: 'agents', id: item.agent_id, title: item.agent });
+                    });
+                    li.append(jump);
+                } else {
+                    li.append(time, label);
+                }
                 ul.append(li);
             }
             box.append(h, ul);
@@ -2236,8 +2251,15 @@
         document.getElementById('list-count').textContent = String(list.length);
         const order = { waiting: 0, error: 1, working: 2, done: 3, idle: 4, sleeping: 5 };
         list.sort((a, b) => (order[a.status] - order[b.status]) || a.name.localeCompare(b.name));
+        const cards = document.getElementById('cards');
+        const signature = JSON.stringify([state.selected, state.star && state.star.name, list.map((a) => {
+            const p = state.projects.get(a.project_id);
+            return [a.id, a.name, a.role, a.avatar, p ? p.name : null, projectKey(a), a.status, a.status_label, a.message, (a.question || {}).question || null, a.message ? null : (a.last_seen_at ? ago(a.last_seen_at) : null)];
+        })]);
+        if (cards.dataset.signature === signature) return;
+        cards.dataset.signature = signature;
 
-        document.getElementById('cards').replaceChildren(...list.map((agent) => {
+        cards.replaceChildren(...list.map((agent) => {
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'card';
@@ -2327,6 +2349,7 @@
             panel.hidden = true;
             panel.replaceChildren();
             delete panel.dataset.agent;
+            delete panel.dataset.signature;
             return;
         }
         const typing = panel.contains(document.activeElement) && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
@@ -2335,6 +2358,10 @@
             if (status) { status.dataset.status = agent.status; status.textContent = agent.status_label; }
             return;
         }
+        const project = state.projects.get(agent.project_id);
+        const signature = JSON.stringify([agent.id, agent.name, agent.role, project ? project.name : null, agent.status, agent.status_label, agent.message, (agent.question || {}).id || null, agent.source, agent.link || null, agent.last_seen_at ? ago(agent.last_seen_at) : null]);
+        if (!panel.hidden && panel.dataset.signature === signature) return;
+        panel.dataset.signature = signature;
         const editing = panel.dataset.agent === String(agent.id) && !!panel.querySelector('details[open]');
         panel.hidden = false;
         panel.dataset.agent = String(agent.id);
@@ -2354,7 +2381,6 @@
         h.textContent = agent.name;
         const sub = document.createElement('span');
         sub.className = 'card-role';
-        const project = state.projects.get(agent.project_id);
         sub.textContent = [agent.role, project ? project.name : null].filter(Boolean).join(' · ');
         titles.append(h, sub);
         const pillEl = document.createElement('span');
@@ -2375,7 +2401,7 @@
 
         const meta = document.createElement('p');
         meta.className = 'detail-meta';
-        const source = { mcp: 'Skill or scheduled task', claude_code: 'Claude Code session', subagent: 'Subagent in Claude Code' }[agent.source] || agent.source;
+        const source = agent.source === 'mcp' && agent.kind === 'chat' ? 'Chat in Claude' : ({ mcp: 'Skill or scheduled task', claude_code: 'Claude Code session', subagent: 'Subagent in Claude Code' }[agent.source] || agent.source);
         meta.textContent = `${source} · last seen ${agent.last_seen_at ? ago(agent.last_seen_at) : 'never'}`;
 
         const details = document.createElement('details');
@@ -2420,7 +2446,25 @@
         });
         details.append(summary, form);
 
-        panel.replaceChildren(...[head, agent.question ? questionBlock(agent.question) : message, meta, details]);
+        const links = document.createElement('div');
+        links.className = 'pop-links';
+        const historyButton = document.createElement('button');
+        historyButton.type = 'button';
+        historyButton.className = 'link-btn';
+        historyButton.textContent = 'History';
+        historyButton.addEventListener('click', () => openHistory({ kind: 'agents', id: agent.id, title: agent.name, subtitle: sub.textContent, avatar: agent.avatar }));
+        links.append(historyButton);
+        if (agent.link) {
+            const open = document.createElement('a');
+            open.className = 'link-btn';
+            open.href = agent.link;
+            open.target = '_blank';
+            open.rel = 'noopener noreferrer';
+            open.textContent = agent.kind === 'chat' ? 'Open chat' : 'Open session';
+            links.append(open);
+        }
+
+        panel.replaceChildren(...[head, agent.question ? questionBlock(agent.question) : message, meta, links, details]);
         if (agent.question && !typing) {
             const input = panel.querySelector('textarea');
             if (input && panel.dataset.focus !== String(agent.question.id)) {
@@ -2579,6 +2623,262 @@
         if (s < 3600) return `${Math.floor(s / 60)} min ago`;
         if (s < 86400) return s < 7200 ? '1 hour ago' : `${Math.floor(s / 3600)} hours ago`;
         return s < 172800 ? '1 day ago' : `${Math.floor(s / 86400)} days ago`;
+    }
+
+    // ---------- history ----------
+
+    const HISTORY_DOTS = { open: 'waiting', answered: 'done', in_chat: 'done', cancelled: 'idle' };
+    const HISTORY_OUTCOME = { open: 'Still open', in_chat: 'Answered in the chat', cancelled: 'Expired without an answer' };
+
+    async function openHistory(target) {
+        const drawer = document.getElementById('history');
+        if (!drawer) return;
+        state.history = { title: 'History', ...target, items: [], next: null, loading: true, error: false, delivered: null, keepDays: null, questions: null, opener: document.activeElement };
+        setHistoryParam(`${target.kind === 'agents' ? 'agent' : 'project'}-${target.id}`);
+        drawer.hidden = false;
+        document.getElementById('history-backdrop').hidden = false;
+        document.body.classList.add('drawer-open');
+        renderHistory();
+        drawer.querySelector('.pop-close').focus({ preventScroll: true });
+        await loadHistory();
+    }
+
+    function applySubject(h, subject) {
+        h.title = subject.name;
+        h.subtitle = subject.subtitle || '';
+        if (subject.type === 'agent') h.avatar = subject.avatar;
+    }
+
+    function setHistoryParam(value) {
+        if (CFG.tv || !window.history || !window.history.replaceState) return;
+        const url = new URL(window.location.href);
+        if (value) url.searchParams.set('history', value);
+        else url.searchParams.delete('history');
+        window.history.replaceState(null, '', url);
+    }
+
+    function openHistoryFromUrl() {
+        const value = new URL(window.location.href).searchParams.get('history');
+        const match = value && value.match(/^(agent|project)-(\d+|none)$/);
+        if (!match || (match[1] === 'agent' && match[2] === 'none')) return;
+        const id = match[2] === 'none' ? 'none' : Number(match[2]);
+        if (match[1] === 'agent') {
+            const agent = state.agents.get(id);
+            openHistory(agent ? { kind: 'agents', id, title: agent.name, avatar: agent.avatar } : { kind: 'agents', id });
+        } else {
+            const project = state.projects.get(id);
+            openHistory({ kind: 'projects', id, title: project ? project.name : (id === 'none' ? 'No project' : 'History') });
+        }
+    }
+
+    function minutesText(minutes) {
+        if (minutes < 1) return 'within a minute';
+        if (minutes < 90) return `within ${minutes} min`;
+        const hours = Math.round(minutes / 60);
+        return `within ${hours} h`;
+    }
+
+    function questionStats(q) {
+        if (!q || !q.asked) return null;
+        const box = document.createElement('div');
+        box.className = 'history-stats';
+        const add = (value, label, tone) => {
+            const stat = document.createElement('div');
+            stat.className = 'history-stat';
+            if (tone) stat.dataset.tone = tone;
+            const strong = document.createElement('strong');
+            strong.textContent = value;
+            const span = document.createElement('span');
+            span.textContent = label;
+            stat.append(strong, span);
+            box.append(stat);
+        };
+        add(String(q.asked), q.asked === 1 ? 'question in 30 days' : 'questions in 30 days');
+        if (q.median_minutes !== null) add(minutesText(q.median_minutes).replace('within ', ''), 'usual time to your answer');
+        if (q.open) add(String(q.open), 'still open', 'wait');
+        if (q.cancelled) add(String(q.cancelled), 'expired', 'muted');
+        if (q.in_chat) add(String(q.in_chat), 'answered in the chat');
+        return box;
+    }
+
+    let historyTimer = null;
+
+    function refreshHistorySoon() {
+        if (!state.history) return;
+        clearTimeout(historyTimer);
+        historyTimer = setTimeout(refreshHistory, 800);
+    }
+
+    async function refreshHistory() {
+        const h = state.history;
+        if (!h || h.loading) return;
+        try {
+            const response = await fetch(new URL(`${CFG.historyUrl}/${h.kind}/${h.id}`, window.location.origin), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (state.history !== h) return;
+            const fresh = new Set(data.items.map((i) => i.key));
+            const wasEmpty = !h.items.length;
+            h.items = [...data.items, ...h.items.filter((i) => !fresh.has(i.key))].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+            if (wasEmpty) h.next = data.next;
+            h.delivered = data.delivered;
+            if (data.questions) h.questions = data.questions;
+            if (data.subject) applySubject(h, data.subject);
+            renderHistory();
+        } catch (e) {
+            // a missed refresh is caught up by the next one
+        }
+    }
+
+    function closeHistory() {
+        const drawer = document.getElementById('history');
+        const opener = state.history && state.history.opener;
+        state.history = null;
+        setHistoryParam(null);
+        drawer.hidden = true;
+        drawer.replaceChildren();
+        document.getElementById('history-backdrop').hidden = true;
+        document.body.classList.remove('drawer-open');
+        if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
+    }
+
+    async function loadHistory() {
+        const h = state.history;
+        if (!h) return;
+        h.loading = true;
+        h.error = false;
+        renderHistory();
+        const url = new URL(`${CFG.historyUrl}/${h.kind}/${h.id}`, window.location.origin);
+        if (h.next) url.searchParams.set('before', h.next);
+        try {
+            const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error(String(response.status));
+            const data = await response.json();
+            if (state.history !== h) return;
+            const seen = new Set(h.items.map((i) => i.key));
+            h.items.push(...data.items.filter((i) => !seen.has(i.key)));
+            h.next = data.next;
+            h.delivered = data.delivered;
+            h.keepDays = data.keep_days;
+            if (data.questions) h.questions = data.questions;
+            if (data.subject) applySubject(h, data.subject);
+        } catch (e) {
+            if (state.history === h) h.error = true;
+        }
+        if (state.history !== h) return;
+        h.loading = false;
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const drawer = document.getElementById('history');
+        const h = state.history;
+        if (!drawer || !h) return;
+        const list = drawer.querySelector('.history-list');
+        const scroll = list ? list.scrollTop : 0;
+
+        const head = document.createElement('div');
+        head.className = 'pop-head';
+        if (h.avatar !== undefined) {
+            const portrait = document.createElement('span');
+            portrait.className = 'portrait';
+            portrait.setAttribute('aria-hidden', 'true');
+            portraitStyle(portrait, h.avatar, 40);
+            head.append(portrait);
+        } else {
+            const dot = document.createElement('span');
+            dot.className = 'history-project-dot';
+            dot.style.background = projectColor(h.id === 'none' ? NONE : h.id);
+            head.append(dot);
+        }
+        const titles = document.createElement('div');
+        titles.className = 'pop-titles';
+        const title = document.createElement('h2');
+        title.id = 'history-title';
+        title.textContent = h.title;
+        const sub = document.createElement('span');
+        sub.className = 'card-role';
+        sub.textContent = h.subtitle || '';
+        titles.append(title, sub);
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'pop-close';
+        close.setAttribute('aria-label', 'Close history');
+        close.textContent = '×';
+        close.addEventListener('click', () => closeHistory());
+        head.append(titles, close);
+
+        const summary = document.createElement('p');
+        summary.className = 'history-summary';
+        if (h.delivered !== null) {
+            summary.textContent = `${h.delivered} ${h.delivered === 1 ? 'delivery' : 'deliveries'} in the last 30 days · activity is kept for ${h.keepDays} days`;
+        }
+        const stats = questionStats(h.questions);
+
+        const body = document.createElement('div');
+        body.className = 'history-list';
+        let day = null;
+        let group = null;
+        for (const item of h.items) {
+            if (item.day !== day) {
+                day = item.day;
+                const heading = document.createElement('h3');
+                heading.className = 'history-day';
+                heading.textContent = item.day_label;
+                group = document.createElement('ol');
+                group.className = 'feed history-feed';
+                body.append(heading, group);
+            }
+            group.append(historyItem(item, h.kind === 'projects'));
+        }
+        if (!h.items.length && !h.loading) {
+            const empty = document.createElement('p');
+            empty.className = 'history-empty';
+            empty.textContent = h.error ? 'The history could not be loaded.' : 'Nothing happened in this period yet.';
+            body.append(empty);
+        }
+        if (h.loading) {
+            const loading = document.createElement('p');
+            loading.className = 'history-empty';
+            loading.textContent = 'Loading history…';
+            body.append(loading);
+        } else if (h.next || (h.error && h.items.length)) {
+            const more = actionButton(h.error ? 'Try again' : 'Load older activity', () => loadHistory());
+            more.classList.add('history-more');
+            body.append(more);
+        }
+
+        drawer.replaceChildren(...[head, summary, stats, body].filter(Boolean));
+        body.scrollTop = scroll;
+    }
+
+    function historyItem(item, showAgent) {
+        const li = document.createElement('li');
+        li.dataset.type = item.type;
+        const dot = document.createElement('span');
+        dot.className = 'feed-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        const time = document.createElement('time');
+        time.dateTime = item.at;
+        time.textContent = item.time;
+        const text = document.createElement('span');
+        text.className = 'history-text';
+        if (item.type === 'question') {
+            li.dataset.status = HISTORY_DOTS[item.status] || 'idle';
+            const label = document.createElement('span');
+            label.className = 'history-question';
+            label.textContent = `${showAgent && item.agent ? `${item.agent.name} asked` : 'Question'}: ${item.text}`;
+            const answer = document.createElement('span');
+            answer.className = 'history-answer';
+            answer.dataset.outcome = item.status;
+            answer.textContent = item.status === 'answered' ? `Your answer: ${item.answer}` : HISTORY_OUTCOME[item.status];
+            text.append(label, answer);
+        } else {
+            if (item.status) li.dataset.status = item.status;
+            text.textContent = item.text;
+        }
+        li.append(dot, time, text);
+        return li;
     }
 
     const dog = { pos: null, path: null, mode: 'lie', until: 0, face: 1, spot: null, wish: null, bark: 0, barkText: 'Woof!', layout: null, comfortId: null, comforted: {}, greetedOn: null, begged: 0 };
@@ -2919,8 +3219,28 @@
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && state.selected) select(null);
+        if (e.key === 'Tab' && state.history) {
+            const focusable = [...document.querySelectorAll('#history button')];
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (!document.getElementById('history').contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+            else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            return;
+        }
+        if (e.key !== 'Escape') return;
+        if (state.history) closeHistory();
+        else if (state.selected) select(null);
     });
+
+    const listHistory = document.getElementById('list-history');
+    if (listHistory) listHistory.addEventListener('click', () => {
+        const project = state.projects.get(state.filter);
+        openHistory({ kind: 'projects', id: state.filter === NONE ? 'none' : state.filter, title: project ? project.name : 'No project', subtitle: 'Everything that happened in this project' });
+    });
+    const historyBackdrop = document.getElementById('history-backdrop');
+    if (historyBackdrop) historyBackdrop.addEventListener('click', () => closeHistory());
 
     document.getElementById('stat-waiting').addEventListener('click', () => {
         const waiting = visibleAgents().filter((a) => a.status === 'waiting').sort((a, b) => (b.question ? 1 : 0) - (a.question ? 1 : 0) || a.id - b.id);
@@ -3071,5 +3391,6 @@
         if (CFG.tv) tvMode();
         setInterval(loadState, 30000);
         setInterval(() => { renderCards(visibleAgents()); renderAlarms(); }, 60000);
+        if (!CFG.tv) openHistoryFromUrl();
     });
 })();

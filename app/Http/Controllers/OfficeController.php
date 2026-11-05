@@ -31,6 +31,7 @@ class OfficeController
             'dog' => (string) config('kantoor.dog'),
             'agentUrl' => url('/office/agents'),
             'questionUrl' => url('/office/questions'),
+            'historyUrl' => url('/office/history'),
             'logbookUrl' => route('logbook'),
             'alarmUrl' => url('/office/alarms'),
             'portraits' => $this->image('portraits'),

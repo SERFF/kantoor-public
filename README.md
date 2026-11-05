@@ -360,6 +360,10 @@ Report to the office with `report_status` (agent: `weekly-report`, project: `Int
 
 Always use the same name for `agent`, so it stays the same colleague.
 
+Pass `kind: "chat"` when Claude works in a conversation with you and `kind: "task"` for a skill or scheduled task. A chat that goes quiet becomes available again; a task that goes quiet counts as stuck. If Claude knows the link of its conversation or session, it can pass it as `link`, and the office shows a button to open it.
+
+When you answer a question in the conversation instead of in the office, Claude calls `get_answer` with `answered_in_chat: true`, so the question is closed in the office as well.
+
 ## The office on a TV
 
 At `https://kantoor.example.com/tv` you see the TV view when you are logged in. For a TV you don't want to log in on, create a view-only link:
@@ -432,6 +436,9 @@ Everything lives in `.env`. After a change, run `php artisan optimize`.
 | `KANTOOR_OFFLINE_AFTER` | `120` | Minutes of silence before a Claude Code session goes home |
 | `KANTOOR_FORGET_OFFLINE_AFTER` | `7` | Days before a session that went home is forgotten |
 | `KANTOOR_KEEP_LOG` | `365` | Days that deliveries stay in the logbook |
+| `KANTOOR_KEEP_EVENTS` | `30` | Days that activity stays in the history |
+| `KANTOOR_KEEP_QUESTIONS` | `30` | Days that questions and answers stay in the history |
+| `KANTOOR_EXPIRE_QUESTIONS` | `12` | Hours before an unanswered question from a skill or chat expires |
 | `KANTOOR_ALARM_MINUTES` | `60` | How long the phone keeps ringing |
 | `KANTOOR_ALERT_IPS` | empty | IP addresses allowed to post alerts without a token |
 | `MCP_REDIRECT_DOMAINS` | `https://claude.ai,https://claude.com` | Where the connector may return to after logging in |
@@ -443,6 +450,7 @@ Everything lives in `.env`. After a change, run `php artisan optimize`.
 - The office dog lies down next to whoever is stuck, says good morning and begs at the coffee corner.
 - In the evening the desk lamps come on and the sky changes colour at sunrise and sunset.
 - At `/logbook` you see per day what was delivered, filtered by project and period. Whoever delivered the most in the past week hangs on the wall as employee of the week.
+- Click **History** on a colleague, or on a project when you filter by it, to see everything that happened: status changes, hand-offs, and every question with your answer. It also shows how many questions were asked in the last 30 days and how quickly you usually answer. Names in the logbook link to the same history.
 
 ## Updating
 

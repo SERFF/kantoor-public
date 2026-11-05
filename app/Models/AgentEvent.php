@@ -51,7 +51,7 @@ class AgentEvent extends Model
         }
 
         if ($this->type === 'answer') {
-            return "You answered a question from {$from}";
+            return "You answered a question from {$from}".($this->message === AgentQuestion::IN_CHAT ? ' in the chat' : '');
         }
 
         return match ($this->status) {

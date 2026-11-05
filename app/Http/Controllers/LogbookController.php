@@ -40,6 +40,7 @@ class LogbookController
                     'label' => ucfirst(CarbonImmutable::parse($date, $tz)->locale('en')->isoFormat('dddd, MMMM D')),
                     'entries' => $group->map(fn (LogEntry $entry) => [
                         'time' => $entry->created_at->setTimezone($tz)->format('H:i'),
+                        'agent_id' => $entry->agent_id,
                         'agent' => $entry->agent_name,
                         'role' => $entry->agent_role,
                         'avatar' => $entry->avatar,

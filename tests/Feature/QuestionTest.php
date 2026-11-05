@@ -117,7 +117,7 @@ class QuestionTest extends TestCase
 
     public function test_a_waiting_report_without_question_asks_its_message(): void
     {
-        OfficeServer::tool(ReportStatus::class, ['agent' => 'recikeep', 'status' => 'waiting', 'message' => 'Fix the existing lists?'])
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'lists', 'status' => 'waiting', 'message' => 'Fix the existing lists?'])
             ->assertOk()
             ->assertSee('get_answer');
 
@@ -143,10 +143,56 @@ class QuestionTest extends TestCase
     public function test_old_questions_are_pruned(): void
     {
         OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
-        AgentQuestion::query()->update(['updated_at' => now()->subDays(8)]);
+        AgentQuestion::query()->update(['updated_at' => now()->subDays(31)]);
 
         $this->artisan('kantoor:check')->assertSuccessful();
 
         $this->assertSame(0, AgentQuestion::count());
+    }
+
+    public function test_an_answer_given_in_the_chat_closes_the_question(): void
+    {
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
+
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop', 'answered_in_chat' => true])
+            ->assertOk()
+            ->assertSee('answered in the chat');
+
+        $agent = Agent::first();
+        $question = AgentQuestion::first();
+        $this->assertSame(Status::Working, $agent->status);
+        $this->assertNull($agent->openQuestion);
+        $this->assertSame('in_chat', $question->outcome());
+        $this->assertNotNull($question->collected_at);
+        $this->assertTrue($agent->events()->where('type', 'answer')->where('message', AgentQuestion::IN_CHAT)->exists());
+
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop', 'answered_in_chat' => true])->assertOk()->assertSee('no open question');
+    }
+
+    public function test_an_answer_in_the_app_wins_over_answered_in_chat(): void
+    {
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
+        app(Office::class)->answer(AgentQuestion::first(), 'develop');
+
+        OfficeServer::tool(GetAnswer::class, ['agent' => 'webshop', 'answered_in_chat' => true])
+            ->assertOk()
+            ->assertSee('develop');
+
+        $this->assertSame('answered', AgentQuestion::first()->outcome());
+    }
+
+    public function test_unanswered_questions_expire(): void
+    {
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'waiting', 'question' => 'Which branch?']);
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'reports', 'status' => 'waiting', 'question' => 'Continue?']);
+        AgentQuestion::query()->whereHas('agent', fn ($query) => $query->where('key', 'mcp:webshop'))->update(['created_at' => now()->subHours(13)]);
+
+        $this->artisan('kantoor:check')->assertSuccessful();
+
+        $webshop = Agent::firstWhere('key', 'mcp:webshop');
+        $this->assertSame(Status::Idle, $webshop->status);
+        $this->assertNull($webshop->openQuestion);
+        $this->assertSame('cancelled', AgentQuestion::firstWhere('agent_id', $webshop->id)->outcome());
+        $this->assertSame(Status::Waiting, Agent::firstWhere('key', 'mcp:reports')->status);
     }
 }

@@ -59,6 +59,8 @@ class Agent extends Model
             'name' => $this->name,
             'role' => $this->role,
             'source' => $this->source,
+            'kind' => $this->kind,
+            'link' => $this->link,
             'project_id' => $this->project_id,
             'parent_id' => $this->parent_id,
             'avatar' => $this->avatar,

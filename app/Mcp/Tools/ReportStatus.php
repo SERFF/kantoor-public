@@ -34,6 +34,8 @@ class ReportStatus extends Tool
             'question' => $schema->string()->description('Only with status "waiting": the question for the user, shown in the office app where the user can answer it. Fetch the answer with get_answer. Keep it short and free of personal or customer data.'),
             'options' => $schema->array()->items($schema->string())->description('Optional answer choices shown as buttons, e.g. ["Branch A", "Branch B"]. Max 6. The user can always type a free answer.'),
             'timeout_minutes' => $schema->integer()->description('After how many minutes without a report a working agent is marked as stuck. Default 30.'),
+            'kind' => $schema->string()->enum(['chat', 'task'])->description('chat = a conversation with the user, which may simply stop without a final report; task = a skill, scheduled task or other unattended run, where silence means it is stuck. Send it on the first report.'),
+            'link' => $schema->string()->description('Optional https link to this conversation or session, so the user can jump to it from the office. Only pass a link you know for certain; never guess one.'),
             'parent' => $schema->string()->description('For a subagent: the "agent" value of the agent that started it, so it sits next to it in the office. Not needed when the name is "<parent>-researcher", "-builder", "-reviewer" or "-tester", optionally with a number.'),
         ];
     }
@@ -50,6 +52,8 @@ class ReportStatus extends Tool
             'options' => 'nullable',
             'timeout_minutes' => 'nullable|integer|min:1|max:1440',
             'parent' => 'nullable|string|max:80|different:agent',
+            'kind' => 'nullable|string|in:chat,task',
+            'link' => 'nullable|string|max:500',
         ]);
 
         $status = Status::from($request->get('status'));
@@ -78,6 +82,15 @@ class ReportStatus extends Tool
         $office->adopt($agent, $request->get('parent')
             ? Agent::query()->firstWhere('key', $this->key($request->get('parent')))
             : $office->parentByName($agent->key));
+
+        $extra = array_filter([
+            'kind' => $request->get('kind'),
+            'link' => $this->link($request->get('link')),
+        ]);
+
+        if ($extra) {
+            $agent->forceFill($extra)->save();
+        }
 
         if ($request->get('timeout_minutes')) {
             $agent->forceFill(['timeout_minutes' => (int) $request->get('timeout_minutes')])->save();
@@ -111,6 +124,17 @@ class ReportStatus extends Tool
             fn ($option) => is_scalar($option) ? trim((string) $option) : '',
             (array) $options,
         ), fn ($option) => $option !== ''));
+    }
+
+    protected function link(?string $link): ?string
+    {
+        $link = trim((string) $link);
+
+        if ($link === '' || ! filter_var($link, FILTER_VALIDATE_URL) || parse_url($link, PHP_URL_SCHEME) !== 'https') {
+            return null;
+        }
+
+        return $link;
     }
 
     protected function key(string $agent): string

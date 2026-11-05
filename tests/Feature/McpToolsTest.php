@@ -119,4 +119,35 @@ class McpToolsTest extends TestCase
 
         $this->assertSame(3, Agent::query()->distinct()->count('name'));
     }
+
+    public function test_a_silent_chat_becomes_available_and_a_silent_task_gets_stuck(): void
+    {
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'kind' => 'chat'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'inbox', 'status' => 'working', 'kind' => 'task'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'legacy', 'status' => 'working'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'webshop', 'status' => 'working', 'message' => 'Still busy'])->assertOk();
+
+        Agent::query()->update(['last_seen_at' => now()->subHour()]);
+
+        $this->artisan('kantoor:check')->assertSuccessful();
+
+        $chat = Agent::firstWhere('key', 'mcp:webshop');
+        $this->assertSame('chat', $chat->kind);
+        $this->assertSame(Status::Idle, $chat->status);
+        $this->assertStringStartsWith('Chat idle since', $chat->message);
+        $this->assertSame(Status::Error, Agent::firstWhere('key', 'mcp:inbox')->status);
+        $this->assertSame(Status::Error, Agent::firstWhere('key', 'mcp:legacy')->status);
+    }
+
+    public function test_report_status_keeps_only_https_links(): void
+    {
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'a', 'status' => 'working', 'link' => 'https://claude.ai/code/session_123'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'b', 'status' => 'working', 'link' => 'javascript:alert(1)'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'c', 'status' => 'working', 'link' => 'http://example.com'])->assertOk();
+        OfficeServer::tool(ReportStatus::class, ['agent' => 'd', 'status' => 'working', 'kind' => 'robot'])->assertHasErrors();
+
+        $this->assertSame('https://claude.ai/code/session_123', Agent::firstWhere('key', 'mcp:a')->link);
+        $this->assertNull(Agent::firstWhere('key', 'mcp:b')->link);
+        $this->assertNull(Agent::firstWhere('key', 'mcp:c')->link);
+    }
 }

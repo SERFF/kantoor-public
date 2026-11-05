@@ -169,6 +169,40 @@ class Office
         return $question;
     }
 
+    public function answeredInChat(Agent $agent): ?AgentQuestion
+    {
+        $question = $agent->questions()->open()->whereNull('kind')->latest('id')->first();
+
+        if (! $question) {
+            return null;
+        }
+
+        $question->forceFill([
+            'answer' => AgentQuestion::IN_CHAT,
+            'answered_at' => now(),
+            'collected_at' => now(),
+        ])->save();
+
+        $agent->events()->create(['type' => 'answer', 'message' => AgentQuestion::IN_CHAT]);
+
+        $this->report($agent, Status::Working, 'Continuing with your answer');
+
+        return $question;
+    }
+
+    public function expire(AgentQuestion $question): void
+    {
+        $agent = $question->agent;
+
+        if ($agent && $agent->status === Status::Waiting && $agent->openQuestion?->is($question)) {
+            $this->report($agent, Status::Idle, 'Question expired');
+
+            return;
+        }
+
+        $question->forceFill(['cancelled_at' => now()])->save();
+    }
+
     protected function cancelQuestions(Agent $agent): void
     {
         $agent->questions()->open()->update(['cancelled_at' => now()]);

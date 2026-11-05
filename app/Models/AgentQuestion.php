@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgentQuestion extends Model
 {
+    public const IN_CHAT = 'Answered in the chat';
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -39,6 +41,16 @@ class AgentQuestion extends Model
     public function isOpen(): bool
     {
         return $this->answered_at === null && $this->cancelled_at === null;
+    }
+
+    public function outcome(): string
+    {
+        return match (true) {
+            $this->answer === self::IN_CHAT => 'in_chat',
+            $this->answered_at !== null => 'answered',
+            $this->cancelled_at !== null => 'cancelled',
+            default => 'open',
+        };
     }
 
     public function toOffice(): array

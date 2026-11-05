@@ -18,6 +18,9 @@
             <p>{{ $total }} {{ $total === 1 ? 'delivery' : 'deliveries' }}{{ $project ? ' for '.$project->name : '' }} in the past {{ strtolower($periods[$days]) }}.</p>
         </div>
         <div class="stats">
+            @if ($project)
+                <a class="ghost" href="{{ route('office', ['history' => 'project-'.$project->id]) }}">History of {{ $project->name }}</a>
+            @endif
             <a class="ghost" href="{{ route('office') }}">Back to the office</a>
         </div>
     </header>
@@ -46,7 +49,7 @@
                         <span class="portrait" aria-hidden="true" style="background-image:url('{{ $portraits }}');background-size:{{ 32 * 6 }}px auto;background-position:-{{ ($entry['avatar'] % 6) * 32 }}px -{{ intdiv($entry['avatar'], 6) * 32 }}px;width:32px;height:32px"></span>
                         <span class="log-body">
                             <strong>{{ $entry['message'] ?: 'Done' }}</strong>
-                            <span>{{ $entry['agent'] }}{{ $entry['role'] ? ' · '.$entry['role'] : '' }}{{ ! $project && $entry['project'] ? ' · '.$entry['project'] : '' }}</span>
+                            <span>@if ($entry['agent_id'])<a class="log-agent" href="{{ route('office', ['history' => 'agent-'.$entry['agent_id']]) }}">{{ $entry['agent'] }}</a>@else{{ $entry['agent'] }}@endif{{ $entry['role'] ? ' · '.$entry['role'] : '' }}{{ ! $project && $entry['project'] ? ' · '.$entry['project'] : '' }}</span>
                         </span>
                     </li>
                 @endforeach

@@ -63,6 +63,7 @@ class Logbook
                     'name' => $group->first()->project?->name ?? 'No project',
                     'count' => $group->count(),
                     'items' => $group->take(5)->map(fn (LogEntry $entry) => [
+                        'agent_id' => $entry->agent_id,
                         'agent' => $entry->agent_name,
                         'message' => $entry->message,
                         'time' => $entry->created_at->setTimezone($this->timezone())->format('H:i'),
