@@ -2249,6 +2249,12 @@
         const island = state.layout && state.layout.islands.find((i) => String(i.key) === String(state.filter));
         document.getElementById('list-title').textContent = island ? island.name : 'All agents';
         document.getElementById('list-count').textContent = String(list.length);
+        state.signOffIds = list.filter((a) => a.status === 'error').map((a) => a.id);
+        const signOffButton = document.getElementById('list-signoff');
+        if (signOffButton) {
+            signOffButton.hidden = !state.signOffIds.length;
+            signOffButton.textContent = `Sign off errors (${state.signOffIds.length})`;
+        }
         const order = { waiting: 0, error: 1, working: 2, done: 3, idle: 4, sleeping: 5 };
         list.sort((a, b) => (order[a.status] - order[b.status]) || a.name.localeCompare(b.name));
         const cards = document.getElementById('cards');
@@ -2433,7 +2439,9 @@
         if (agent.status === 'error' || agent.status === 'waiting') {
             actions.append(actionButton('Release', () => patch(agent.id, { status: 'idle' })));
         }
-        if (agent.source !== 'mcp') {
+        if (agent.status === 'error') {
+            actions.append(actionButton('Sign off', () => patch(agent.id, { status: 'offline' })));
+        } else if (agent.source !== 'mcp') {
             actions.append(actionButton('Send home', () => patch(agent.id, { status: 'offline' })));
         }
         const note = document.createElement('p');
@@ -2600,6 +2608,24 @@
         else onChanged({ agents: [data.agent] });
         const fresh = document.querySelector('#detail .form-msg');
         if (fresh) fresh.textContent = 'Saved.';
+    }
+
+    async function signOff(button) {
+        const ids = state.signOffIds || [];
+        if (!ids.length) return;
+        if (!window.confirm(ids.length === 1 ? 'Sign off 1 agent with an error?' : `Sign off ${ids.length} agents with an error?`)) return;
+        button.disabled = true;
+        try {
+            const response = await fetch(`${CFG.agentUrl}/afmelden`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ ids }),
+            });
+            if (response.ok) onChanged({ agents: (await response.json()).agents });
+        } finally {
+            button.disabled = false;
+        }
     }
 
     function select(id, keep) {
@@ -3234,6 +3260,8 @@
         else if (state.selected) select(null);
     });
 
+    const listSignOff = document.getElementById('list-signoff');
+    if (listSignOff) listSignOff.addEventListener('click', () => signOff(listSignOff));
     const listHistory = document.getElementById('list-history');
     if (listHistory) listHistory.addEventListener('click', () => {
         const project = state.projects.get(state.filter);

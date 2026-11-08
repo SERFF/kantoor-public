@@ -60,7 +60,7 @@ class AgentEvent extends Model
             'done' => "{$from} is done".($this->message ? ": {$this->message}" : ''),
             'error' => "{$from} is stuck".($this->message ? ": {$this->message}" : ''),
             'sleeping' => "{$from} goes to sleep".($this->message ? ": {$this->message}" : ''),
-            'offline' => "{$from} goes home",
+            'offline' => "{$from} goes home".($this->message ? ": {$this->message}" : ''),
             default => "{$from}: ".($this->message ?: 'available'),
         };
     }

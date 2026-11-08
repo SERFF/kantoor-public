@@ -64,6 +64,31 @@ class OfficeTest extends TestCase
         $this->assertSame(Status::Idle, $agent->status);
     }
 
+    public function test_agents_in_error_can_be_signed_off(): void
+    {
+        $office = app(Office::class);
+        $stuck = $office->report($office->agent('mcp:stuck'), Status::Error, 'No sign of life');
+        $single = $office->report($office->agent('mcp:single'), Status::Error);
+        $busy = $office->report($office->agent('mcp:busy'), Status::Working);
+
+        $this->postJson('/office/agents/afmelden', ['ids' => [$stuck->id]])->assertUnauthorized();
+
+        $this->actingAs(User::factory()->create());
+
+        $this->postJson('/office/agents/afmelden', ['ids' => [$stuck->id, $busy->id]])
+            ->assertOk()
+            ->assertJsonCount(1, 'agents')
+            ->assertJsonPath('agents.0.status', 'offline');
+
+        $this->patchJson("/office/agents/{$single->id}", ['status' => 'offline'])->assertOk();
+
+        $this->assertSame(Status::Offline, $stuck->fresh()->status);
+        $this->assertSame(Status::Offline, $single->fresh()->status);
+        $this->assertSame(Status::Working, $busy->fresh()->status);
+        $this->assertSame('Signed off by you', $stuck->fresh()->message);
+        $this->assertStringContainsString('Signed off', $stuck->events()->latest('id')->first()->toOffice()['text']);
+    }
+
     public function test_check_marks_silent_agents_and_sends_sessions_home(): void
     {
         $office = app(Office::class);

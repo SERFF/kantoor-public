@@ -16,6 +16,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tv', [TvController::class, 'show'])->name('tv');
     Route::get('/logbook', LogbookController::class)->name('logbook');
     Route::get('/office/state', [OfficeController::class, 'state'])->name('office.state');
+    Route::post('/office/agents/afmelden', [OfficeController::class, 'signOff'])->name('office.agents.sign-off');
     Route::patch('/office/agents/{agent}', [OfficeController::class, 'update'])->name('office.agents.update');
     Route::get('/office/history/agents/{agent}', [HistoryController::class, 'agent'])->name('office.history.agent');
     Route::get('/office/history/projects/{project}', [HistoryController::class, 'project'])->where('project', 'none|[0-9]+')->name('office.history.project');
