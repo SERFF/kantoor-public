@@ -52,6 +52,7 @@
             <div class="panel-head">
                 <h2 id="list-title">All agents</h2>
                 <span class="list-tools">
+                    <button type="button" class="link-btn" id="list-signoff" hidden>Sign off errors</button>
                     <button type="button" class="link-btn" id="list-history" hidden>History</button>
                     <span class="mono" id="list-count"></span>
                 </span>

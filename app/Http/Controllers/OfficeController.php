@@ -106,11 +106,27 @@ class OfficeController
         $agent->save();
 
         if (isset($data['status'])) {
-            $office->report($agent, Status::from($data['status']), $data['status'] === 'idle' ? 'Released by you' : null);
+            $office->report($agent, Status::from($data['status']), $data['status'] === 'idle' ? 'Released by you' : 'Signed off by you');
         } else {
             $office->broadcast($agent);
         }
 
         return response()->json(['agent' => $agent->fresh()->toOffice()]);
+    }
+
+    public function signOff(Request $request, Office $office): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|max:100',
+            'ids.*' => 'integer',
+        ]);
+
+        $agents = Agent::query()
+            ->whereIn('id', $data['ids'])
+            ->where('status', Status::Error->value)
+            ->get()
+            ->map(fn (Agent $agent) => $office->report($agent, Status::Offline, 'Signed off by you'));
+
+        return response()->json(['agents' => $agents->map(fn (Agent $agent) => $agent->fresh()->toOffice())->values()]);
     }
 }
